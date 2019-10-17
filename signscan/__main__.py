@@ -21,13 +21,14 @@ YTrain = namedtuple("YTrain", label_mapping)
 def load_data(folder: str, *, shuffle=True) -> Tuple[pandas.DataFrame, YTrain]:
     """
     Loads the data from the provided folder.
-
-    x_train is a dataframe of 12660 images and the greyscale values of its pixel data (normalized)
-    y_train is a set of dataframes mapping
+    We have chosen not to shrink the data set.
 
     :param folder: The directory to load from.
     :param shuffle: Whether to shuffle the data.
-    :return: A tuple containing the x data, and a dictionary of y features.
+    :returns:
+        A tuple containing the images, and a YTrain mapping the images to labels..
+        x_train is a dataframe of 12660 images and the greyscale values of its pixel data (normalized).
+        y_train is a set of dataframes that associate an given image with a label.
     """
     x_train = pandas.read_csv(path.join(folder, "x_train_gr_smpl.csv"))
     files = [x for x in os.listdir(folder) if re.match(".+([0-9]).csv", x)]
