@@ -49,18 +49,28 @@ def load_data(folder: str, *, shuffle=True) -> Tuple[pandas.DataFrame, YTrain]:
 
 
 if __name__ == "__main__":
+    print("loading data")
     x_train, y_train = load_data(argv[1], shuffle=False)
 
     #
-    # Naive Bayesian Classification
+    # Naive Bayesian Classification and Deeper Analysis
+    # https://github.com/arlyon/dmml/issues/3
+    # https://github.com/arlyon/dmml/issues/4
     #
 
-    naive_bayes = naive_bayes.BernoulliNB()
-    naive_bayes.fit(x_train, column_or_1d(y_train.limit_60))
+    print("performing bayesian classification:")
+    for label, df in y_train._asdict().items():
+        bayes = naive_bayes.BernoulliNB()
+        bayes.fit(x_train, column_or_1d(df))
 
-    y_train.limit_60["prediction"] = naive_bayes.predict(x_train)
-    y_train.limit_60["correct"] = y_train.limit_60["label"] == y_train.limit_60["prediction"]
+        df["prediction"] = bayes.predict(x_train)
+        df["correct"] = df["label"] == df["prediction"]
 
-    correct_count = sum(y_train.limit_60["correct"])
-    total_count = len(y_train.limit_60)
-    print(f"naive bayesian accuracy: {correct_count} out of {total_count} ({correct_count / total_count * 100: .2f}%)")
+        correct_count, total_count = sum(df["correct"]), len(df)
+        print(
+            f" - accuracy for label {label}: {correct_count} out of "
+            f"{total_count} ({correct_count / total_count * 100:.2f}%)"
+        )
+
+        pixel_likelihood = pandas.DataFrame(data=bayes.feature_log_prob_[1]).sort_values(0)[0:10]
+        print(f"   most correlated pixels: {list(pixel_likelihood.index)}")
