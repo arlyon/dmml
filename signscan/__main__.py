@@ -2,9 +2,11 @@ import os
 import re
 from collections import namedtuple
 from os import path
-from sys import argv
-from typing import Tuple
+from typing import Tuple, Dict
 
+import click
+import matplotlib.pyplot as plt
+import numpy
 import pandas
 from sklearn import naive_bayes
 from sklearn.utils import column_or_1d
@@ -16,6 +18,8 @@ label_mapping = [
 ]
 
 YTrain = namedtuple("YTrain", label_mapping)
+BayesAnalysis = namedtuple("BayesAnalysis",
+                           ["classifier", "correct_predictions", "total_predictions", "top_features", "heat_map"])
 
 
 def load_data(folder: str, *, shuffle=True) -> Tuple[pandas.DataFrame, YTrain]:
@@ -48,9 +52,36 @@ def load_data(folder: str, *, shuffle=True) -> Tuple[pandas.DataFrame, YTrain]:
     return x_train, y_train
 
 
-if __name__ == "__main__":
-    print("loading data")
-    x_train, y_train = load_data(argv[1], shuffle=False)
+def bayesian_classification(x_train, frame, n_correlated=10) -> BayesAnalysis:
+    classifier = naive_bayes.MultinomialNB()
+    classifier.fit(x_train, column_or_1d(frame))
+
+    frame["prediction"] = classifier.predict(x_train)
+    frame["correct"] = frame["label"] == frame["prediction"]
+
+    correct_count, total_count = sum(frame["correct"]), len(frame)
+
+    success_probability = classifier.coef_[0]
+
+    # get most correlated features for each label
+    top_features = numpy.argsort(success_probability)[:n_correlated]
+    pixel_likelihood = [f'{x % 48}x{x // 48}' for x in top_features]
+
+    # generate heatmap of correlation
+    heat_map = numpy.reshape(success_probability, (-1, 48))
+
+    return BayesAnalysis(classifier, correct_count, total_count, pixel_likelihood, heat_map)
+
+
+@click.command()
+@click.option('--save_plot', help='The folder to output plots to.', default=None)
+@click.option('--show_plot', help='Whether to show plots.', is_flag=True)
+@click.argument("data_folder")
+def cmd(data_folder, save_plot, show_plot):
+    """Coursework one tool."""
+
+    print("loading data...")
+    x_train, y_train = load_data(data_folder, shuffle=False)
 
     #
     # Naive Bayesian Classification and Deeper Analysis
@@ -58,19 +89,31 @@ if __name__ == "__main__":
     # https://github.com/arlyon/dmml/issues/4
     #
 
-    print("performing bayesian classification:")
-    for label, df in y_train._asdict().items():
-        bayes = naive_bayes.BernoulliNB()
-        bayes.fit(x_train, column_or_1d(df))
+    label_classifications: Dict[str, BayesAnalysis] = {}
+    with click.progressbar(y_train._asdict().items(), label="performing bayesian classification") as bar:
+        for label, frame in bar:
+            label_classifications[label] = bayesian_classification(x_train, frame)
 
-        df["prediction"] = bayes.predict(x_train)
-        df["correct"] = df["label"] == df["prediction"]
+    for label, analysis in label_classifications.items():
+        accuracy = f"{analysis.correct_predictions} out of {analysis.total_predictions} ({analysis.correct_predictions / analysis.total_predictions * 100:.2f}%)"
+        print(f" - accuracy for label {click.style(label, fg='green')}: {click.style(accuracy, fg='bright_black')}")
+        print(f"   {click.style(str(len(analysis.top_features)), fg='yellow')} most correlated pixels: {click.style(', '.join(analysis.top_features), fg='bright_black')}")
 
-        correct_count, total_count = sum(df["correct"]), len(df)
-        print(
-            f" - accuracy for label {label}: {correct_count} out of "
-            f"{total_count} ({correct_count / total_count * 100:.2f}%)"
-        )
+        plt.imshow(analysis.heat_map, cmap='hot', interpolation='lanczos')
+        plt.title("Heatmap for " + label)
 
-        pixel_likelihood = pandas.DataFrame(data=bayes.feature_log_prob_[1]).sort_values(0)[0:10]
-        print(f"   most correlated pixels: {list(pixel_likelihood.index)}")
+        if show_plot:
+            plt.show()
+
+        if save_plot is not None:
+            os.makedirs(save_plot, exist_ok=True)
+            plt.savefig(os.path.join(save_plot, label + ".png"))
+
+    #
+    # Attempt to improve classification and make conclusions
+    #
+    #
+
+
+if __name__ == "__main__":
+    cmd()

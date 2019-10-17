@@ -5,11 +5,12 @@ verify_ssl = true
 
 [dev-packages]
 
-
 [packages]
 scikit-learn = ">=0.21.0"
 pandas = ">=0.25.0"
 opencv-python = ">=4.1.1"
+matplotlib = ">=3.1"
+click = "*"
 
 [requires]
 python_version = "3.7"
