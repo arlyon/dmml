@@ -8,6 +8,12 @@
 | Submission deadline | ​15:00pm Monday 11th November 2019 -- via Vision |
 | Worth | 25% of the marks for the module​ |
 
+## Usage
+
+```bash
+pipenv run signscan ./data
+```
+
 ## Purpose
 
 Data preparation and analysis, confusion matrices, correlation and feature selection are all important in
