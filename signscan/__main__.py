@@ -50,5 +50,16 @@ def load_data(folder: str, *, shuffle=True) -> Tuple[pandas.DataFrame, YTrain]:
 if __name__ == "__main__":
     x_train, y_train = load_data(argv[1], shuffle=False)
 
+    #
+    # Naive Bayesian Classification
+    #
 
+    naive_bayes = naive_bayes.BernoulliNB()
+    naive_bayes.fit(x_train, column_or_1d(y_train.limit_60))
 
+    y_train.limit_60["prediction"] = naive_bayes.predict(x_train)
+    y_train.limit_60["correct"] = y_train.limit_60["label"] == y_train.limit_60["prediction"]
+
+    correct_count = sum(y_train.limit_60["correct"])
+    total_count = len(y_train.limit_60)
+    print(f"naive bayesian accuracy: {correct_count} out of {total_count} ({correct_count / total_count * 100: .2f}%)")
