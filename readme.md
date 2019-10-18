@@ -8,10 +8,18 @@
 | Submission deadline | ​15:00pm Monday 11th November 2019 -- via Vision |
 | Worth | 25% of the marks for the module​ |
 
-## Usage
+## Setup and Usage
+
+First, install:
 
 ```bash
-pipenv run signscan ./data
+pip install pipenv
+```
+
+Make sure it's on your path, extract the data zip file, and run the program:
+
+```bash
+pipenv run signscan --help
 ```
 
 ## Purpose

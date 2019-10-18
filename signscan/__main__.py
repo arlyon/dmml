@@ -74,50 +74,72 @@ def load_data(folder: str, *, shuffle=True) -> Tuple[pandas.DataFrame, YTrain]:
     return x_train, YTrain(**y_train)
 
 
+def fit_labels(x_train, y_train: YTrain) -> Dict[str, BayesAnalysis]:
+    """For each label, create a bayes classifier for it."""
+    return {
+        label: bayesian_classification(x_train, frame, n_correlated=len(x_train.columns))
+        for label, frame in y_train._asdict().items()
+    }
+
+
 def bayesian_classification(train: pandas.DataFrame, labels: pandas.DataFrame, n_correlated=10) -> BayesAnalysis:
     classifier = naive_bayes.MultinomialNB()
     classifier.fit(train, column_or_1d(labels))
 
-    labels = labels.copy()
+    labels = labels.copy()  # make a copy to avoid editing the given labels
     labels["prediction"] = classifier.predict(train)
     labels["correct"] = labels["label"] == labels["prediction"]
 
     correct_count, total_count = sum(labels["correct"]), len(labels)
 
+    # get the various probabilities from the classifier
     success_probability = classifier.coef_[0]
 
     # get most correlated features for each label
     top_features = CommonPixels(numpy.argsort(success_probability)[:n_correlated])
 
-    # generate heatmap of correlation
+    # generate heat map of correlation when dealing with the full image
     heat_map = numpy.reshape(success_probability, (-1, 48)) if len(success_probability) == 48**2 else None
 
     return BayesAnalysis(classifier, correct_count, total_count, top_features, heat_map)
 
 
-@click.command()
-@click.option('--save_plot', help='The folder to output plots to.', default=None)
-@click.option('--show_plot', help='Whether to show plots.', is_flag=True)
+@click.group()
 @click.argument("data_folder")
-def cmd(data_folder, save_plot, show_plot):
-    """Coursework one tool."""
+@click.option('--save-plot', help='The folder to output plots to.', default=None)
+@click.option('--show-plot', help='Whether to show plots.', is_flag=True)
+@click.pass_context
+def signscan(ctx, data_folder, save_plot, show_plot):
+    """Tool for demonstrating the various analyses required for coursework 1."""
+
+    # store data so that other commands can use it
+    ctx.ensure_object(dict)
+    ctx.obj["data_folder"] = data_folder
+    ctx.obj["save_plot"] = save_plot
+    ctx.obj["show_plot"] = show_plot
+
+
+@signscan.command()
+@click.pass_context
+def bayes_simple(ctx):
+    """
+    Naive Bayesian Classification and Deeper Analysis.
+
+    - https://github.com/arlyon/dmml/issues/3
+    - https://github.com/arlyon/dmml/issues/4
+    """
 
     print("loading data...")
-    x_train, y_train = load_data(data_folder, shuffle=False)
-
-    #
-    # Naive Bayesian Classification and Deeper Analysis
-    # https://github.com/arlyon/dmml/issues/3
-    # https://github.com/arlyon/dmml/issues/4
-    #
+    x_train, y_train = load_data(ctx.obj["data_folder"], shuffle=False)
 
     print("running bayesian classification on all features...")
-    label_classifications: Dict[str, BayesAnalysis] = {
-        label: bayesian_classification(x_train, frame, n_correlated=len(x_train.columns))
-        for label, frame in y_train._asdict().items()
-    }
 
-    for label, analysis in label_classifications.items():
+    save_plot = ctx.obj["save_plot"]
+    show_plot = ctx.obj["show_plot"]
+
+    label_classifiers = fit_labels(x_train, y_train)
+
+    for label, analysis in label_classifiers.items():
         accuracy = f"{analysis.correct_predictions} out of {analysis.total_predictions} ({analysis.correct_predictions / analysis.total_predictions * 100:.2f}%)"
         print(f" - accuracy for label {click.style(label, fg='green')}: {click.style(accuracy, fg='bright_black')}")
         print(f"   {click.style(str(len(analysis.top_features[:10])), fg='yellow')} most correlated pixels: {click.style(', '.join(analysis.top_features[:10].pixel_coords()), fg='bright_black')}")
@@ -132,30 +154,43 @@ def cmd(data_folder, save_plot, show_plot):
             os.makedirs(save_plot, exist_ok=True)
             plt.savefig(os.path.join(save_plot, label + ".png"))
 
-    print(f" - average accuracy: {sum(analysis.correct_predictions / analysis.total_predictions for analysis in label_classifications.values()) / len(label_classifications) * 100:.2f}%")
+    print(f" - average accuracy: {sum(analysis.correct_predictions / analysis.total_predictions for analysis in label_classifiers.values()) / len(label_classifiers) * 100:.2f}%")
 
-    #
-    # Attempt to improve classification and make conclusions
-    # https://github.com/arlyon/dmml/issues/5
-    #
 
-    print("building accuracy graph over features ordered by correlation...")
+@signscan.command()
+@click.option("-n", default=10, help="How many of the n most correlated values to graph.")
+@click.pass_context
+def bayes_complex(ctx, n):
+    """
+    Improve bayesian classification and make conclusions.
+
+    - https://github.com/arlyon/dmml/issues/5
+    """
+
+    print("loading data...")
+    x_train, y_train = load_data(ctx.obj["data_folder"], shuffle=False)
+
+    print(f"building accuracy graph over {n} features sorted by correlation...")
+
+    save_plot = ctx.obj["save_plot"]
+    show_plot = ctx.obj["show_plot"]
+
+    label_classifiers = fit_labels(x_train, y_train)
+
     feature_analyses = []
-    with click.progressbar(range(1, 20)) as bar:
+    with click.progressbar(range(1, n+1)) as bar:
         for n in bar:
-            top_n_pixels = set(itertools.chain.from_iterable(x.top_features[:n] for x in label_classifications.values()))
-            limited_label_classifications: Dict[str, BayesAnalysis] = {
-                label: bayesian_classification(x_train[(str(x) for x in top_n_pixels)], frame)
-                for label, frame in y_train._asdict().items()
-            }
+            top_n_pixels = set(itertools.chain.from_iterable(x.top_features[:n] for x in label_classifiers.values()))
+            limited_label_classifications = fit_labels(x_train[(str(x) for x in top_n_pixels)], y_train)
             feature_analyses.append((limited_label_classifications, n))
 
-    data = zip(
-        (y for _, y in feature_analyses),
-        (sum(y.correct_predictions / y.total_predictions for y in x.values()) / len(x) for x, _ in feature_analyses),
+    # for each of the analyses get the a pair of the (average accuracy, index)
+    data = (
+        (sum(y.correct_predictions / y.total_predictions for y in x.values()) / len(x), y)
+        for x, y in feature_analyses
     )
 
-    accuracy = pandas.DataFrame(data=data, columns=["number of features", "prediction accuracy"])
+    accuracy = pandas.DataFrame(data=data, columns=["prediction accuracy", "number of features"])
     accuracy.plot(kind='scatter', x='number of features', y='prediction accuracy')
     plt.title("Accuracy using n top correlating features for each label")
 
@@ -164,8 +199,10 @@ def cmd(data_folder, save_plot, show_plot):
 
     if save_plot is not None:
         os.makedirs(save_plot, exist_ok=True)
-        plt.savefig(os.path.join(save_plot, "feature_accuracy.png"))
+        path = os.path.join(save_plot, "feature_accuracy.png")
+        plt.savefig(path)
+        print("saved figure to " + path)
 
 
 if __name__ == "__main__":
-    cmd()
+    signscan()
