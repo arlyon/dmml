@@ -111,7 +111,7 @@ welcome to do so, assuming they have prior knowledge of these languages.​ ​
     - Using only the top 2 non-class fields from each **train_smpl_label**​.
     - Using only the top 5 non-class fields from each **train_smpl_label**​.
     - Using only the top 10 non-class fields from each **train_smpl_label**​.
-    - You will have three data sets, with 14, 35 and 70 non-class attributes respectively. Repeat the
+    - You will have three data sets, with 20, 50, and 100 non-class attributes respectively. Repeat the
     experiment described in item (4) on these three data sets.
 7. **Make conclusions:** What kind of information about this data set did you learn, as a result of
     the above experiments? You should ask questions such as: Which streets signs are harder to
