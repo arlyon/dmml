@@ -40,7 +40,7 @@ class BayesAnalysis:
     heat_map: Optional[numpy.ndarray]
 
 
-def load_data(folder: str, *, shuffle=True) -> Tuple[pandas.DataFrame, YTrain]:
+def load_data(folder: str, *, shuffle=True) -> Tuple[pandas.DataFrame, YTrain, numpy.array]:
     """
     Loads the data from the provided folder.
     We have chosen not to shrink the data set.
@@ -55,23 +55,28 @@ def load_data(folder: str, *, shuffle=True) -> Tuple[pandas.DataFrame, YTrain]:
 
     x_train = None
     y_train = {}
+    all_labels = None
 
     with click.progressbar(os.listdir(folder)) as bar:
         for file in bar:
             if re.match(".+([0-9]).csv", file):
                 y_train[label_mapping[int(file[-5])]] = pandas.read_csv(
                     path.join(folder, file), true_values="0", false_values="1",
-                    names=["label"], header=0
+                    names=["label"]
                 )
             elif "x_train" in file:
                 x_train = pandas.read_csv(path.join(folder, file))
+            elif "y_train" in  file:
+                all_labels = pandas.read_csv(path.join(folder, file), names=["labels"]).values.flatten()
+    
+
 
     if shuffle:
         x_train.sample(frac=1)
         for x in y_train.__dict__.values():
             x.sample(frac=1)
 
-    return x_train, YTrain(**y_train)
+    return x_train, YTrain(**y_train), all_labels
 
 
 def fit_labels(x_train, y_train: YTrain) -> Dict[str, BayesAnalysis]:
@@ -130,7 +135,7 @@ def bayes_simple(ctx):
     """
 
     print("loading data...")
-    x_train, y_train = load_data(ctx.obj["data_folder"], shuffle=False)
+    x_train, y_train, _ = load_data(ctx.obj["data_folder"], shuffle=False)
 
     print("running bayesian classification on all features...")
 
@@ -147,12 +152,14 @@ def bayes_simple(ctx):
         plt.imshow(analysis.heat_map, cmap='hot', interpolation='lanczos')
         plt.title("Heatmap for " + label)
 
-        if show_plot:
-            plt.show()
-
         if save_plot is not None:
             os.makedirs(save_plot, exist_ok=True)
             plt.savefig(os.path.join(save_plot, label + ".png"))
+
+        if show_plot:
+            plt.show()
+
+        
 
     print(f" - average accuracy: {sum(analysis.correct_predictions / analysis.total_predictions for analysis in label_classifiers.values()) / len(label_classifiers) * 100:.2f}%")
 
@@ -168,7 +175,7 @@ def bayes_complex(ctx, n):
     """
 
     print("loading data...")
-    x_train, y_train = load_data(ctx.obj["data_folder"], shuffle=False)
+    x_train, y_train, _ = load_data(ctx.obj["data_folder"], shuffle=False)
 
     print(f"building accuracy graph over {n} features sorted by correlation...")
 
@@ -194,15 +201,14 @@ def bayes_complex(ctx, n):
     accuracy.plot(kind='scatter', x='number of features', y='prediction accuracy')
     plt.title("Accuracy using n top correlating features for each label")
 
-    if show_plot:
-        plt.show()
-
     if save_plot is not None:
         os.makedirs(save_plot, exist_ok=True)
         path = os.path.join(save_plot, "feature_accuracy.png")
         plt.savefig(path)
         print("saved figure to " + path)
 
+    if show_plot:
+        plt.show()
 
 if __name__ == "__main__":
     signscan()
