@@ -66,15 +66,15 @@ def load_data(folder: str, *, shuffle=True) -> Tuple[pandas.DataFrame, YTrain, n
                 )
             elif "x_train" in file:
                 x_train = pandas.read_csv(path.join(folder, file))
-            elif "y_train" in  file:
-                all_labels = pandas.read_csv(path.join(folder, file), names=["labels"]).values.flatten()
-    
-
+            elif "y_train" in file:
+                all_labels = pandas.read_csv(path.join(folder, file))
 
     if shuffle:
-        x_train.sample(frac=1)
-        for x in y_train.__dict__.values():
-            x.sample(frac=1)
+        shuffled_indices = numpy.random.permutation(x_train.index)
+        x_train = x_train.reindex(shuffled_indices)
+        all_labels = all_labels.reindex(shuffled_indices).values.flatten()
+        for key, y in y_train.items():
+            y_train[key] = y.reindex(shuffled_indices)
 
     return x_train, YTrain(**y_train), all_labels
 
@@ -135,7 +135,7 @@ def bayes_simple(ctx):
     """
 
     print("loading data...")
-    x_train, y_train, _ = load_data(ctx.obj["data_folder"], shuffle=False)
+    x_train, y_train, _ = load_data(ctx.obj["data_folder"])
 
     print("running bayesian classification on all features...")
 
@@ -175,7 +175,7 @@ def bayes_complex(ctx, n):
     """
 
     print("loading data...")
-    x_train, y_train, _ = load_data(ctx.obj["data_folder"], shuffle=False)
+    x_train, y_train, _ = load_data(ctx.obj["data_folder"])
 
     print(f"building accuracy graph over {n} features sorted by correlation...")
 
