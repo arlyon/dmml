@@ -72,11 +72,11 @@ def load_data(folder: str, *, shuffle=True) -> Tuple[pandas.DataFrame, YTrain, n
     if shuffle:
         shuffled_indices = numpy.random.permutation(x_train.index)
         x_train = x_train.reindex(shuffled_indices)
-        all_labels = all_labels.reindex(shuffled_indices).values.flatten()
+        all_labels = all_labels.reindex(shuffled_indices)
         for key, y in y_train.items():
             y_train[key] = y.reindex(shuffled_indices)
 
-    return x_train, YTrain(**y_train), all_labels
+    return x_train, YTrain(**y_train), all_labels.values.flatten()
 
 
 def fit_labels(x_train, y_train: YTrain) -> Dict[str, BayesAnalysis]:
