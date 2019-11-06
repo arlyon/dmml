@@ -62,7 +62,7 @@ def load_data(folder: str, *, shuffle=True) -> Tuple[pandas.DataFrame, YTrain, n
             if re.match(".+([0-9]).csv", file):
                 y_train[label_mapping[int(file[-5])]] = pandas.read_csv(
                     path.join(folder, file), true_values="0", false_values="1",
-                    names=["label"]
+                    names=["label"], header=0
                 )
             elif "x_train" in file:
                 x_train = pandas.read_csv(path.join(folder, file))
