@@ -171,9 +171,52 @@ def bayes_simple(ctx):
         if show_plot:
             plt.show()
 
-        
+    print(f"average accuracy: {sum(analysis.correct_count / analysis.total_count for analysis in label_classifiers.values()) / len(label_classifiers) * 100:.2f}%")
 
-    print(f" - average accuracy: {sum(analysis.correct_predictions / analysis.total_predictions for analysis in label_classifiers.values()) / len(label_classifiers) * 100:.2f}%")
+    print("")
+    print("mistaken classifications:")
+    most_mistaken = calculate_most_mistaken_heatmap(label_classifiers, labels)
+    plt.imshow(most_mistaken, cmap='hot')
+    plt.title("Which signs are most frequently mislabeled as another?")
+    plt.xlabel("mistaken label")
+    plt.ylabel("actual label")
+
+    if save_plot is not None:
+        os.makedirs(save_plot, exist_ok=True)
+        plt.savefig(os.path.join(save_plot, "mislabeled.png"))
+
+    if show_plot:
+        plt.show()
+
+    for label, analysis in label_classifiers.items():
+        most_mistaken_label = Counter(label_mapping[x] for x in labels.loc[analysis.mistake_indices].label)
+        n_most_mistaken = sorted(most_mistaken_label.items(), key=lambda x: x[1], reverse=True)[:3]
+        most_mistaken = ", ".join(f"{key} ({count})" for key, count in n_most_mistaken)
+        print(f" - mistaken with {click.style(label, fg='green')}: {click.style(most_mistaken, fg='bright_black')}")
+
+    print("")
+    print("10 most frequently influential features:")
+    counter = Counter(itertools.chain.from_iterable(x.top_features[:10] for x in label_classifiers.values()))
+    for key, count in itertools.islice(sorted(counter.items(), key=lambda x: x[1], reverse=True), 10):
+        print(f" - {key % 48}x{key // 48} (top feature {count} times)")
+
+
+def calculate_most_mistaken_heatmap(label_classifiers: Dict[str, pandas.DataFrame], labels) -> pandas.DataFrame:
+    """
+    Generates a 2d table describing how many times each column is mistaken for a given index.
+    :param label_classifiers: A number of classifiers over the labels.
+    :param labels: A DataFrame which matches each image index with an index into label_mapping.
+    :return: A DataFrame table.
+    """
+    return pandas.DataFrame(
+        data=(
+            Counter(label_mapping[x] for x in labels.loc[y.mistake_indices].label)
+            for y in label_classifiers.values()
+        ),
+        columns=label_classifiers.keys(),
+        index=label_classifiers.keys(),
+        dtype=int
+    ).fillna(value=0)
 
 
 @signscan.command()
