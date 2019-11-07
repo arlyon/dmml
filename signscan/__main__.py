@@ -240,21 +240,31 @@ def bayes_complex(ctx, n):
 
     label_classifiers = fit_labels(x_train, y_train)
 
-    feature_analyses = []
+    # dictionary mapping subsets of n features to the analyses generated from them
+    feature_analyses = {}
     with click.progressbar(range(1, n + 1)) as bar:
         for n in bar:
             top_n_pixels = set(itertools.chain.from_iterable(x.top_features[:n] for x in label_classifiers.values()))
-            limited_label_classifications = fit_labels(x_train[(str(x) for x in top_n_pixels)], y_train)
-            feature_analyses.append((limited_label_classifications, n))
+            feature_analyses[n] = fit_labels(x_train[(str(x) for x in top_n_pixels)], y_train)
 
     # for each of the analyses get the a pair of the (average accuracy, index)
-    data = (
+    average_data = (
         (sum(y.correct_count / y.total_count for y in x.values()) / len(x), y)
-        for x, y in feature_analyses
+        for y, x in feature_analyses.items()
     )
 
-    accuracy = pandas.DataFrame(data=data, columns=["prediction accuracy", "number of features"])
-    accuracy.plot(kind='scatter', x='number of features', y='prediction accuracy')
+    average_accuracy = pandas.DataFrame(data=average_data, columns=["prediction accuracy", "number of features"])
+
+    print("")
+    print("accuracy for 2, 5, and 10 top features per label:")
+    for label in label_mapping:
+        features = " / ".join(
+            f"{x} features {100 * feature_analyses[x][label].correct_count / feature_analyses[x][label].total_count:.2f}%"
+            for x in (2, 5, 10)
+        )
+        print(f" - {label} / {features}")
+
+    average_accuracy.plot(kind='scatter', x='number of features', y='prediction accuracy')
     plt.title("Accuracy using n top correlating features for each label")
 
     if save_plot is not None:
