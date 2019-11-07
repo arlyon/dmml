@@ -40,7 +40,7 @@ class BayesAnalysis:
     heat_map: Optional[numpy.ndarray]
 
 
-def load_data(folder: str, *, shuffle=True) -> Tuple[pandas.DataFrame, YTrain, numpy.array]:
+def load_data(folder: str, *, shuffle=True) -> Tuple[pandas.DataFrame, YTrain, pandas.DataFrame]:
     """
     Loads the data from the provided folder.
     We have chosen not to shrink the data set.
@@ -60,14 +60,13 @@ def load_data(folder: str, *, shuffle=True) -> Tuple[pandas.DataFrame, YTrain, n
     with click.progressbar(os.listdir(folder)) as bar:
         for file in bar:
             if re.match(".+([0-9]).csv", file):
-                y_train[label_mapping[int(file[-5])]] = pandas.read_csv(
-                    path.join(folder, file), true_values="0", false_values="1",
-                    names=["label"], header=0
-                )
+                frame = pandas.read_csv(path.join(folder, file), names=["label"], header=0)
+                frame["label"] = frame["label"] == 0  # convert to bool
+                y_train[label_mapping[int(file[-5])]] = frame
             elif "x_train" in file:
                 x_train = pandas.read_csv(path.join(folder, file))
             elif "y_train" in file:
-                all_labels = pandas.read_csv(path.join(folder, file))
+                all_labels = pandas.read_csv(path.join(folder, file), names=["label"], header=0)
 
     if shuffle:
         shuffled_indices = numpy.random.permutation(x_train.index)
@@ -76,7 +75,7 @@ def load_data(folder: str, *, shuffle=True) -> Tuple[pandas.DataFrame, YTrain, n
         for key, y in y_train.items():
             y_train[key] = y.reindex(shuffled_indices)
 
-    return x_train, YTrain(**y_train), all_labels.values.flatten()
+    return x_train, YTrain(**y_train), all_labels
 
 
 def fit_labels(x_train, y_train: YTrain) -> Dict[str, BayesAnalysis]:
