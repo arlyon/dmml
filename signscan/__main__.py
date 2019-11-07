@@ -1,10 +1,10 @@
 import itertools
 import os
 import re
-from collections import namedtuple
+from collections import namedtuple, Counter
 from dataclasses import dataclass
 from os import path
-from typing import Tuple, Dict, Optional
+from typing import Tuple, Dict, Optional, List
 
 import click
 import matplotlib.pyplot as plt
@@ -34,10 +34,19 @@ class CommonPixels(list):
 @dataclass
 class BayesAnalysis:
     classifier: BaseEstimator
-    correct_predictions: int
-    total_predictions: int
+    total_count: int
+    correct_count: int
     top_features: CommonPixels
     heat_map: Optional[numpy.ndarray]
+    mistake_indices: List[int]  # photos that were mistaken for another
+
+    @property
+    def mistake_count(self):
+        return self.total_count - self.correct_count
+
+    @property
+    def correct_indices(self):
+        return [x for x in range(self.total_count) if x not in self.mistake_indices]
 
 
 def load_data(folder: str, *, shuffle=True) -> Tuple[pandas.DataFrame, YTrain, pandas.DataFrame]:
@@ -91,7 +100,7 @@ def bayesian_classification(train: pandas.DataFrame, labels: pandas.DataFrame, n
     classifier.fit(train, column_or_1d(labels))
 
     labels = labels.copy()  # make a copy to avoid editing the given labels
-    labels["prediction"] = classifier.predict(train)
+    labels["prediction"] = classifier.predict(train).astype(bool)
     labels["correct"] = labels["label"] == labels["prediction"]
 
     correct_count, total_count = sum(labels["correct"]), len(labels)
@@ -99,13 +108,16 @@ def bayesian_classification(train: pandas.DataFrame, labels: pandas.DataFrame, n
     # get the various probabilities from the classifier
     success_probability = classifier.coef_[0]
 
+    # signs most confused with this one
+    mistaken_photos = labels[(labels.prediction == True) & (labels.correct == False)].index
+
     # get most correlated features for each label
     top_features = CommonPixels(numpy.argsort(success_probability)[:n_correlated])
 
     # generate heat map of correlation when dealing with the full image
-    heat_map = numpy.reshape(success_probability, (-1, 48)) if len(success_probability) == 48**2 else None
+    heat_map = numpy.reshape(success_probability, (-1, 48)) if len(success_probability) == 48 ** 2 else None
 
-    return BayesAnalysis(classifier, correct_count, total_count, top_features, heat_map)
+    return BayesAnalysis(classifier, total_count, correct_count, top_features, heat_map, mistaken_photos)
 
 
 @click.group()
@@ -134,8 +146,9 @@ def bayes_simple(ctx):
     """
 
     print("loading data...")
-    x_train, y_train, _ = load_data(ctx.obj["data_folder"])
+    x_train, y_train, labels = load_data(ctx.obj["data_folder"])
 
+    print("")
     print("running bayesian classification on all features...")
 
     save_plot = ctx.obj["save_plot"]
@@ -144,8 +157,8 @@ def bayes_simple(ctx):
     label_classifiers = fit_labels(x_train, y_train)
 
     for label, analysis in label_classifiers.items():
-        accuracy = f"{analysis.correct_predictions} out of {analysis.total_predictions} ({analysis.correct_predictions / analysis.total_predictions * 100:.2f}%)"
-        print(f" - accuracy for label {click.style(label, fg='green')}: {click.style(accuracy, fg='bright_black')}")
+        accuracy = f"{analysis.correct_count} out of {analysis.total_count} ({analysis.correct_count / analysis.total_count * 100:.2f}%)"
+        print(f" - {click.style(label, fg='green')}: {click.style(accuracy, fg='bright_black')}")
         print(f"   {click.style(str(len(analysis.top_features[:10])), fg='yellow')} most correlated pixels: {click.style(', '.join(analysis.top_features[:10].pixel_coords()), fg='bright_black')}")
 
         plt.imshow(analysis.heat_map, cmap='hot', interpolation='lanczos')
@@ -158,9 +171,52 @@ def bayes_simple(ctx):
         if show_plot:
             plt.show()
 
-        
+    print(f"average accuracy: {sum(analysis.correct_count / analysis.total_count for analysis in label_classifiers.values()) / len(label_classifiers) * 100:.2f}%")
 
-    print(f" - average accuracy: {sum(analysis.correct_predictions / analysis.total_predictions for analysis in label_classifiers.values()) / len(label_classifiers) * 100:.2f}%")
+    print("")
+    print("mistaken classifications:")
+    most_mistaken = calculate_most_mistaken_heatmap(label_classifiers, labels)
+    plt.imshow(most_mistaken, cmap='hot')
+    plt.title("Which signs are most frequently mislabeled as another?")
+    plt.xlabel("mistaken label")
+    plt.ylabel("actual label")
+
+    if save_plot is not None:
+        os.makedirs(save_plot, exist_ok=True)
+        plt.savefig(os.path.join(save_plot, "mislabeled.png"))
+
+    if show_plot:
+        plt.show()
+
+    for label, analysis in label_classifiers.items():
+        most_mistaken_label = Counter(label_mapping[x] for x in labels.loc[analysis.mistake_indices].label)
+        n_most_mistaken = sorted(most_mistaken_label.items(), key=lambda x: x[1], reverse=True)[:3]
+        most_mistaken = ", ".join(f"{key} ({count})" for key, count in n_most_mistaken)
+        print(f" - mistaken with {click.style(label, fg='green')}: {click.style(most_mistaken, fg='bright_black')}")
+
+    print("")
+    print("10 most frequently influential features:")
+    counter = Counter(itertools.chain.from_iterable(x.top_features[:10] for x in label_classifiers.values()))
+    for key, count in itertools.islice(sorted(counter.items(), key=lambda x: x[1], reverse=True), 10):
+        print(f" - {key % 48}x{key // 48} (top feature {count} times)")
+
+
+def calculate_most_mistaken_heatmap(label_classifiers: Dict[str, pandas.DataFrame], labels) -> pandas.DataFrame:
+    """
+    Generates a 2d table describing how many times each column is mistaken for a given index.
+    :param label_classifiers: A number of classifiers over the labels.
+    :param labels: A DataFrame which matches each image index with an index into label_mapping.
+    :return: A DataFrame table.
+    """
+    return pandas.DataFrame(
+        data=(
+            Counter(label_mapping[x] for x in labels.loc[y.mistake_indices].label)
+            for y in label_classifiers.values()
+        ),
+        columns=label_classifiers.keys(),
+        index=label_classifiers.keys(),
+        dtype=int
+    ).fillna(value=0)
 
 
 @signscan.command()
@@ -176,6 +232,7 @@ def bayes_complex(ctx, n):
     print("loading data...")
     x_train, y_train, _ = load_data(ctx.obj["data_folder"])
 
+    print("")
     print(f"building accuracy graph over {n} features sorted by correlation...")
 
     save_plot = ctx.obj["save_plot"]
@@ -183,27 +240,38 @@ def bayes_complex(ctx, n):
 
     label_classifiers = fit_labels(x_train, y_train)
 
-    feature_analyses = []
-    with click.progressbar(range(1, n+1)) as bar:
+    # dictionary mapping subsets of n features to the analyses generated from them
+    feature_analyses = {}
+    with click.progressbar(range(1, n + 1)) as bar:
         for n in bar:
             top_n_pixels = set(itertools.chain.from_iterable(x.top_features[:n] for x in label_classifiers.values()))
-            limited_label_classifications = fit_labels(x_train[(str(x) for x in top_n_pixels)], y_train)
-            feature_analyses.append((limited_label_classifications, n))
+            feature_analyses[n] = fit_labels(x_train[(str(x) for x in top_n_pixels)], y_train)
 
     # for each of the analyses get the a pair of the (average accuracy, index)
-    data = (
-        (sum(y.correct_predictions / y.total_predictions for y in x.values()) / len(x), y)
-        for x, y in feature_analyses
+    average_data = (
+        (sum(y.correct_count / y.total_count for y in x.values()) / len(x), y)
+        for y, x in feature_analyses.items()
     )
 
-    accuracy = pandas.DataFrame(data=data, columns=["prediction accuracy", "number of features"])
-    accuracy.plot(kind='scatter', x='number of features', y='prediction accuracy')
+    average_accuracy = pandas.DataFrame(data=average_data, columns=["prediction accuracy", "number of features"])
+
+    print("")
+    print("accuracy for 2, 5, and 10 top features per label:")
+    for label in label_mapping:
+        features = " / ".join(
+            f"{x} features {100 * feature_analyses[x][label].correct_count / feature_analyses[x][label].total_count:.2f}%"
+            for x in (2, 5, 10)
+        )
+        print(f" - {label} / {features}")
+
+    average_accuracy.plot(kind='scatter', x='number of features', y='prediction accuracy')
     plt.title("Accuracy using n top correlating features for each label")
 
     if save_plot is not None:
         os.makedirs(save_plot, exist_ok=True)
         path = os.path.join(save_plot, "feature_accuracy.png")
         plt.savefig(path)
+        print("")
         print("saved figure to " + path)
 
     if show_plot:
