@@ -210,5 +210,41 @@ def bayes_complex(ctx, n):
     if show_plot:
         plt.show()
 
+
+@signscan.command()
+@click.pass_context
+def count_samples(ctx):
+    """
+    Outputs the number of samples for each discovered label.
+    """
+    print("loading data...")
+    x_train, y_train, _ = load_data(ctx.obj["data_folder"])
+
+    save_plot = ctx.obj["save_plot"]
+    show_plot = ctx.obj["show_plot"]
+
+    label_classifiers = fit_labels(x_train, y_train)
+
+    print("")
+    print("enumerated sample counts:")
+    for key, frame in y_train._asdict().items():
+        print(f" - {key}: {frame[frame.label==0].shape[0]}")
+    print("total: ", len(x_train))
+
+    plt.scatter(
+        x=[frame[frame.label==0].shape[0] for frame in y_train._asdict().values()],
+        y=[c.correct_predictions/c.total_predictions for c in label_classifiers.values()]
+    )
+    plt.xlabel("number of samples")
+    plt.ylabel("prediction accuracy")
+
+    if save_plot is not None:
+        os.makedirs(save_plot, exist_ok=True)
+        plt.savefig(os.path.join(save_plot, "sample_size_correlation.png"))
+
+    if show_plot:
+        plt.show()
+
+
 if __name__ == "__main__":
     signscan()
