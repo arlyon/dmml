@@ -1,10 +1,10 @@
 import itertools
 import os
 import re
-from collections import namedtuple
+from collections import namedtuple, Counter
 from dataclasses import dataclass
 from os import path
-from typing import Tuple, Dict, Optional
+from typing import Tuple, Dict, Optional, List
 
 import click
 import matplotlib.pyplot as plt
@@ -34,10 +34,19 @@ class CommonPixels(list):
 @dataclass
 class BayesAnalysis:
     classifier: BaseEstimator
-    correct_predictions: int
-    total_predictions: int
+    total_count: int
+    correct_count: int
     top_features: CommonPixels
     heat_map: Optional[numpy.ndarray]
+    mistake_indices: List[int]  # photos that were mistaken for another
+
+    @property
+    def mistake_count(self):
+        return self.total_count - self.correct_count
+
+    @property
+    def correct_indices(self):
+        return [x for x in range(self.total_count) if x not in self.mistake_indices]
 
 
 def load_data(folder: str, *, shuffle=True) -> Tuple[pandas.DataFrame, YTrain, pandas.DataFrame]:
@@ -91,7 +100,7 @@ def bayesian_classification(train: pandas.DataFrame, labels: pandas.DataFrame, n
     classifier.fit(train, column_or_1d(labels))
 
     labels = labels.copy()  # make a copy to avoid editing the given labels
-    labels["prediction"] = classifier.predict(train)
+    labels["prediction"] = classifier.predict(train).astype(bool)
     labels["correct"] = labels["label"] == labels["prediction"]
 
     correct_count, total_count = sum(labels["correct"]), len(labels)
@@ -99,13 +108,16 @@ def bayesian_classification(train: pandas.DataFrame, labels: pandas.DataFrame, n
     # get the various probabilities from the classifier
     success_probability = classifier.coef_[0]
 
+    # signs most confused with this one
+    mistaken_photos = labels[(labels.prediction == True) & (labels.correct == False)].index
+
     # get most correlated features for each label
     top_features = CommonPixels(numpy.argsort(success_probability)[:n_correlated])
 
     # generate heat map of correlation when dealing with the full image
-    heat_map = numpy.reshape(success_probability, (-1, 48)) if len(success_probability) == 48**2 else None
+    heat_map = numpy.reshape(success_probability, (-1, 48)) if len(success_probability) == 48 ** 2 else None
 
-    return BayesAnalysis(classifier, correct_count, total_count, top_features, heat_map)
+    return BayesAnalysis(classifier, total_count, correct_count, top_features, heat_map, mistaken_photos)
 
 
 @click.group()
@@ -134,8 +146,9 @@ def bayes_simple(ctx):
     """
 
     print("loading data...")
-    x_train, y_train, _ = load_data(ctx.obj["data_folder"])
+    x_train, y_train, labels = load_data(ctx.obj["data_folder"])
 
+    print("")
     print("running bayesian classification on all features...")
 
     save_plot = ctx.obj["save_plot"]
@@ -144,8 +157,8 @@ def bayes_simple(ctx):
     label_classifiers = fit_labels(x_train, y_train)
 
     for label, analysis in label_classifiers.items():
-        accuracy = f"{analysis.correct_predictions} out of {analysis.total_predictions} ({analysis.correct_predictions / analysis.total_predictions * 100:.2f}%)"
-        print(f" - accuracy for label {click.style(label, fg='green')}: {click.style(accuracy, fg='bright_black')}")
+        accuracy = f"{analysis.correct_count} out of {analysis.total_count} ({analysis.correct_count / analysis.total_count * 100:.2f}%)"
+        print(f" - {click.style(label, fg='green')}: {click.style(accuracy, fg='bright_black')}")
         print(f"   {click.style(str(len(analysis.top_features[:10])), fg='yellow')} most correlated pixels: {click.style(', '.join(analysis.top_features[:10].pixel_coords()), fg='bright_black')}")
 
         plt.imshow(analysis.heat_map, cmap='hot', interpolation='lanczos')
@@ -176,6 +189,7 @@ def bayes_complex(ctx, n):
     print("loading data...")
     x_train, y_train, _ = load_data(ctx.obj["data_folder"])
 
+    print("")
     print(f"building accuracy graph over {n} features sorted by correlation...")
 
     save_plot = ctx.obj["save_plot"]
@@ -184,7 +198,7 @@ def bayes_complex(ctx, n):
     label_classifiers = fit_labels(x_train, y_train)
 
     feature_analyses = []
-    with click.progressbar(range(1, n+1)) as bar:
+    with click.progressbar(range(1, n + 1)) as bar:
         for n in bar:
             top_n_pixels = set(itertools.chain.from_iterable(x.top_features[:n] for x in label_classifiers.values()))
             limited_label_classifications = fit_labels(x_train[(str(x) for x in top_n_pixels)], y_train)
@@ -192,7 +206,7 @@ def bayes_complex(ctx, n):
 
     # for each of the analyses get the a pair of the (average accuracy, index)
     data = (
-        (sum(y.correct_predictions / y.total_predictions for y in x.values()) / len(x), y)
+        (sum(y.correct_count / y.total_count for y in x.values()) / len(x), y)
         for x, y in feature_analyses
     )
 
@@ -204,6 +218,7 @@ def bayes_complex(ctx, n):
         os.makedirs(save_plot, exist_ok=True)
         path = os.path.join(save_plot, "feature_accuracy.png")
         plt.savefig(path)
+        print("")
         print("saved figure to " + path)
 
     if show_plot:
