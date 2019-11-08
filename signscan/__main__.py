@@ -78,6 +78,7 @@ def load_data(folder: str, *, shuffle=True) -> Tuple[pandas.DataFrame, YTrain, p
                 all_labels = pandas.read_csv(path.join(folder, file), names=["label"], header=0)
 
     if shuffle:
+        numpy.random.seed(seed=42)
         shuffled_indices = numpy.random.permutation(x_train.index)
         x_train = x_train.reindex(shuffled_indices)
         all_labels = all_labels.reindex(shuffled_indices)
@@ -311,7 +312,6 @@ def count_samples(ctx):
 
     if show_plot:
         plt.show()
-
 
 if __name__ == "__main__":
     signscan()
