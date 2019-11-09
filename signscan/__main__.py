@@ -78,8 +78,6 @@ def load_data(folder: str, *, shuffle=True) -> Tuple[pandas.DataFrame, YTrain, p
             elif "y_train" in file:
                 all_labels = pandas.read_csv(path.join(folder, file), names=["label"], header=0)
 
-    pprint(x_train);
-    # pprint(y_train);
     if shuffle:
         numpy.random.seed(seed=42)
         shuffled_indices = numpy.random.permutation(x_train.index)
@@ -122,8 +120,7 @@ def bayesian_classification(train: pandas.DataFrame, labels: pandas.DataFrame, n
     heat_map = numpy.reshape(success_probability, (-1, 48)) if len(success_probability) == 48 ** 2 else None
 
     result = BayesAnalysis(classifier, total_count, correct_count, top_features, heat_map, mistaken_photos)
-    # pprint(result.correct_predictions)
-    return result;
+    return result
 
 @click.group()
 @click.argument("data_folder")
