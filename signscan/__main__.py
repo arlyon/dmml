@@ -296,51 +296,83 @@ def k_clustering(ctx, sweep_features, sweep_variance, sweep_clusters):
 
     print("loading data...")
     features, boolean_labels, labels = load_data(ctx.obj["data_folder"])
-    labels = labels.copy()
     n_samples, n_features = features.shape
     features_with_labels = features.copy()
     features_with_labels[n_features] = labels
 
+    # Save seed for consistent runs for data analysis
     seed = numpy.random.get_state()
 
+
+    # Run k-clustering excluding the class attribute
     model = KMeans(n_clusters=10)
     print("running k-means clustering on all features except class...")
     numpy.random.set_state(seed)
     base_predictions = model.fit_predict(features)
     score_clustering(labels, base_predictions, print_score=True)
 
+    # Run k-clustering including the class attribute
     print("running k-means clustering on all features including class...")
     numpy.random.set_state(seed)
     score_clustering(labels, model.fit_predict(features_with_labels), print_score=True)
 
+    # Perform Analytical sweeps of features, variance and clusters
     best_feature_n = None
     if sweep_features:
         best_feature_n = feature_sweep(features, boolean_labels, labels, seed, save_plot, show_plot, n_features=500)
 
     if sweep_variance:
-        variance_sweep(features, labels, seed, save_plot, show_plot, step=20)
+        variance_sweep(features, labels, seed, save_plot, show_plot, step=50)
 
     best_cluster_n = None
     if sweep_clusters:
         best_cluster_n = cluster_sweep(features, labels, seed, save_plot, show_plot, n_clusters=50, step=1)
 
+    # Plotting the contingency matrix for the base prediction
     matrix = metrics.cluster.contingency_matrix(column_or_1d(labels), base_predictions)
     plt.imshow(matrix, cmap="hot")
-    plt.title("The Number of Class Samples Assigned to Each Centroid Label")
+    plt.title("Base Prediction mapping centroids against class labels")
     plt.xlabel("Cluster Centroid Label")
     plt.ylabel("Actual Label")
     if save_plot is not None:
         os.makedirs(save_plot, exist_ok=True)
-        path = os.path.join(save_plot, "feature_sweep.png")
+        path = os.path.join(save_plot, "base_prediction_matrix.png")
         plt.savefig(path)
         print("")
         print("saved figure to " + path)
     if show_plot:
         plt.show()
+    plt.clf()
 
-    if best_feature_n and best_cluster_n:
+    # Running k-clustering with results from sweep analysis
+    print("Running k-means clustering with optimal settings")
+    model.set_params(n_clusters=28)
+    selector = SelectKBest(k=122)
+    numpy.random.set_state(seed)
+    optimal_predictions = model.fit_predict(selector.fit_transform(features, column_or_1d(labels)))
+    score_clustering(labels, optimal_predictions, print_score=True)
+
+    # Plotting contingency matrix from optimal predictions
+    matrix = metrics.cluster.contingency_matrix(column_or_1d(labels), optimal_predictions)
+    plt.imshow(matrix, cmap="hot")
+    plt.title("Optimal Prediction mapping centroids against class labels")
+    plt.xlabel("Cluster Centroid Label")
+    plt.ylabel("Actual Label")
+    if save_plot is not None:
+        os.makedirs(save_plot, exist_ok=True)
+        path = os.path.join(save_plot, "optimal_prediction_matrix.png")
+        plt.savefig(path)
+        print("")
+        print("saved figure to " + path)
+    if show_plot:
+        plt.show()
+    plt.clf()
+
+    # Print out optimal results from sweep analysis
+    if best_feature_n:
         print(f"Ideal number of k-best features is {best_feature_n}.")
-        print(f"Ideal number of clusters is {best_cluster_n}.")
+    if best_feature_n:
+         print(f"Ideal number of clusters is {best_cluster_n}.")
     
     print("Analysis Completed.")
 
@@ -348,8 +380,13 @@ def k_clustering(ctx, sweep_features, sweep_variance, sweep_clusters):
 
     
 def feature_sweep(features, boolean_labels, labels, seed, save_plot, show_plot, n_features=20):
+    """
+    Performs a sweep of top 'n_features' bayesian features per label, top 'n_features' bayesian features overall
+    and the top 'n_features' selected by the k-best selector using the f_classifier function.
+    """
     model = KMeans(n_clusters=10)
     
+    # Finds the best performing features per label from the naive bayesian net
     print("Performing sweep of top bayesian features per label...")
     bayes_classifiers = fit_labels(features, boolean_labels)
     bayes_per_label_analysis = []
@@ -360,6 +397,7 @@ def feature_sweep(features, boolean_labels, labels, seed, save_plot, show_plot, 
             predictions = model.fit_predict(features[(str(x) for x in top_n_features)])
             bayes_per_label_analysis.append((len(top_n_features), score_clustering(labels, predictions)))
 
+    # Finds the best performing features overall from the naive bayesian net
     print("Performing sweep of top bayesian features overall...")
     bayes_classifier = bayesian_classification(features, labels, n_correlated=n_features + 1)
     bayes_overall_analysis = []
@@ -370,6 +408,7 @@ def feature_sweep(features, boolean_labels, labels, seed, save_plot, show_plot, 
             predictions = model.fit_predict(features[(str(x) for x in top_n_features)])
             bayes_overall_analysis.append((n, score_clustering(labels, predictions)))
 
+    # Finds the best perfroming features from the K-Best algorithm using the f_classifier scoring function
     print("Performing sweep of K-best features...")
     k_best_analysis = []
     selector = SelectKBest()
@@ -382,6 +421,7 @@ def feature_sweep(features, boolean_labels, labels, seed, save_plot, show_plot, 
             predictions = model.fit_predict(selected_features)
             k_best_analysis.append((n, score_clustering(labels, predictions)))
     
+    # Plots the data gathered from the sweeps aboveß
     if show_plot or save_plot:
         handles = []
         plot_info = [
@@ -404,7 +444,9 @@ def feature_sweep(features, boolean_labels, labels, seed, save_plot, show_plot, 
             print("saved figure to " + path)
         if show_plot:
             plt.show()
+        plt.clf()
 
+    # Plots a heatmap of the results of the f_classifier scoring function
     plt.imshow(selector.scores_.reshape(48, -1), cmap='hot', interpolation='lanczos')
     plt.title("K-Best Feature Heatmap")
     if save_plot is not None:
@@ -414,7 +456,9 @@ def feature_sweep(features, boolean_labels, labels, seed, save_plot, show_plot, 
             print("saved figure to " + path)
     if show_plot:
         plt.show()
+    plt.clf()
 
+    # Returns the best performing number of features for the K-best selector
     score = [v_score + rand for _, _, v_score, rand in [scores.values() for (_, scores) in k_best_analysis]]
     score = numpy.argmax(score)
     print(f"Best performance out of {n_features} features: {score}")
@@ -425,11 +469,18 @@ def feature_sweep(features, boolean_labels, labels, seed, save_plot, show_plot, 
             
 
 def variance_sweep(features, labels, seed, save_plot, show_plot, step=500):
+    """
+    Performs a sweep across the range of variance to establish the value of removing
+    low variance pixels
+    """
     model = KMeans(n_clusters=10)
     variance_analysis = []
     selector = VarianceThreshold()
     selector.fit(features)
+
+    # Sweeps through variance range
     print("Performing sweep of variance thresholding...")
+    # The bounds correspond to approximately 0 features selected and all features selected
     # lower bound 2900
     # upper bound 6450
     with click.progressbar(range(2900, 6450, step)) as variance_range:
@@ -440,6 +491,7 @@ def variance_sweep(features, labels, seed, save_plot, show_plot, step=500):
             predictions = model.fit_predict(selected_features)
             variance_analysis.append((variance, score_clustering(labels, predictions)))
     
+    # Plots results from variance sweep
     if show_plot or save_plot:
         data = list(zip(*[(x, *y.values()) for x, y in variance_analysis]))
         name = "Variance"
@@ -456,9 +508,11 @@ def variance_sweep(features, labels, seed, save_plot, show_plot, step=500):
             print("saved figure to " + path)
         if show_plot:
             plt.show()
+        plt.clf()
 
+    # Plots the variances of each pixel as a heatmap
     plt.imshow(selector.variances_.reshape(48, -1), cmap='hot', interpolation='lanczos')
-    plt.titl("Heatmap of Variances between Images")
+    plt.title("Heatmap of Variances between Images")
     if save_plot is not None:
             path = os.path.join(save_plot, "variance_heatmap.png")
             plt.savefig(path)
@@ -466,12 +520,20 @@ def variance_sweep(features, labels, seed, save_plot, show_plot, step=500):
             print("saved figure to " + path)
     if show_plot:
         plt.show()
+    plt.clf()
 
     
 
 def cluster_sweep(features, labels, seed, save_plot, show_plot, n_clusters=20, step=1):
+    """
+    Performs a sweep across different numbers of clusters to determine the optimal number of
+    for classification for this data set. 
+    """
     cluster_analysis = []
     model = KMeans()
+
+    # Sweeps through the range of numbers of clusters, starting at 10 because of the 10 initial classes.
+    print("Performing sweep of clusters...")
     with click.progressbar(range(10, n_clusters + 1, step)) as cluster_range:
         for cluster_size in cluster_range:
             model.set_params(n_clusters = cluster_size)
@@ -479,6 +541,7 @@ def cluster_sweep(features, labels, seed, save_plot, show_plot, n_clusters=20, s
             predictions = model.fit_predict(features)
             cluster_analysis.append((cluster_size, score_clustering(labels, predictions)))
     
+    # Plots the results from the cluster sweep
     data = list(zip(*[(x, *y.values()) for x, y in cluster_analysis]))
     if show_plot or save_plot:
         name = "Cluster"
@@ -489,19 +552,26 @@ def cluster_sweep(features, labels, seed, save_plot, show_plot, n_clusters=20, s
         plt.title("Performance Comparison with K-Clusters")
         if save_plot is not None:
             os.makedirs(save_plot, exist_ok=True)
-            path = os.path.join(save_plot, "variance_sweep.png")
+            path = os.path.join(save_plot, "cluster_sweep.png")
             plt.savefig(path)
             print("")
             print("saved figure to " + path)
         if show_plot:
             plt.show()
+        plt.clf()
     
-    score = [v_score + rand for _, _, v_score, rand in [scores.values() for (_, scores) in cluster_analysis]]
+    # Returns the best scoring number of clusters based only on the adjusted_random_score
+    # because this score is more accurate for high numbers of clusters.
+    score = [rand for _, _, _, rand in [scores.values() for (_, scores) in cluster_analysis]]
     score = numpy.argmax(score) + 10
     print(f"Best performance out of {n_clusters} clusters: {score}")
     return score
 
 def score_clustering(true_labels, predicted_labels, print_score=False):
+    """
+    Returns the homogeneity, completeness, v_score and adjusted random score for an list of classes
+    and a list of predictions.
+    """
     score = {}
     score["homogeneity"], score["completeness"], score["v_score"] = metrics.cluster.homogeneity_completeness_v_measure(column_or_1d(true_labels), predicted_labels)
     score["adjusted"] = metrics.cluster.adjusted_rand_score(column_or_1d(true_labels), predicted_labels)

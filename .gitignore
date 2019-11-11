@@ -194,3 +194,7 @@ venv.bak/
 .mypy_cache/
 
 data/
+
+# Plot folders
+plots/
+good_plots/
