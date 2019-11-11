@@ -14,9 +14,10 @@ import pandas
 from sklearn import naive_bayes, metrics
 from sklearn.base import BaseEstimator
 from sklearn.utils import column_or_1d
-from sklearn.cluster import KMeans, k_means
+from sklearn.cluster import KMeans, k_means, AgglomerativeClustering
 from sklearn.preprocessing import scale
 from sklearn.feature_selection import SelectKBest, VarianceThreshold
+from sklearn.mixture import GaussianMixture
 
 label_mapping = [
     "limit_60", "limit_80", "limit_80_lifted",
@@ -375,10 +376,7 @@ def k_clustering(ctx, sweep_features, sweep_variance, sweep_clusters):
          print(f"Ideal number of clusters is {best_cluster_n}.")
     
     print("Analysis Completed.")
-
-    
-
-    
+  
 def feature_sweep(features, boolean_labels, labels, seed, save_plot, show_plot, n_features=20):
     """
     Performs a sweep of top 'n_features' bayesian features per label, top 'n_features' bayesian features overall
@@ -462,11 +460,7 @@ def feature_sweep(features, boolean_labels, labels, seed, save_plot, show_plot, 
     score = [v_score + rand for _, _, v_score, rand in [scores.values() for (_, scores) in k_best_analysis]]
     score = numpy.argmax(score)
     print(f"Best performance out of {n_features} features: {score}")
-    return score
-
-    
-            
-            
+    return score      
 
 def variance_sweep(features, labels, seed, save_plot, show_plot, step=500):
     """
@@ -614,6 +608,76 @@ def count_samples(ctx):
 
     if show_plot:
         plt.show()
+
+
+@signscan.command()
+@click.pass_context
+def em_clustering(ctx):
+    """
+    Gaussian Mixture function to be run on dataset.
+    """
+    covariance_type='spherical'
+    n_components=10
+
+    print("loading data...")
+    x_train, _, y_train = load_data(ctx.obj["data_folder"], shuffle=False)
+
+    print("Running Gaussian Mixture...")
+
+    model = GaussianMixture(n_components=n_components, covariance_type=covariance_type, verbose=2)
+
+    labels_predicted = model.fit_predict(x_train)
+
+    y_train = column_or_1d(y_train)
+
+    score = metrics.adjusted_rand_score(y_train, labels_predicted)
+    print(f"Accuracy: {score}.")
+
+    score = metrics.homogeneity_score(y_train, labels_predicted)
+    print(f"Homogeneity Score: {score}.")
+
+    score = metrics.completeness_score(y_train, labels_predicted)
+    print(f"Completeness Score: {score}.")
+
+    score = metrics.v_measure_score(y_train, labels_predicted)
+    print(f"V Measure Score: {score}.")
+
+    score = metrics.fowlkes_mallows_score(y_train, labels_predicted)
+    print(f"Fowlkes Mallows Score: {score}.")
+
+@signscan.command()
+@click.pass_context
+def agglo_clustering(ctx):
+    """
+    Agglomerative clustering function to be run on dataset.
+    """
+    clusters = 10
+    linkage = 'ward'
+
+    print("loading data...")
+    x_train, _, y_train = load_data(ctx.obj["data_folder"], shuffle=False)
+
+    print("Running agglomerative clustering where linkage = {} and n_clusters = {}".format(linkage,clusters))
+
+    model = AgglomerativeClustering(linkage=linkage, n_clusters=clusters)
+    labels_predicted = model.fit_predict(x_train)
+
+    y_train = column_or_1d(y_train)
+
+    score = metrics.adjusted_rand_score(y_train, labels_predicted)
+    print(f"Accuracy: {score}.")
+
+    score = metrics.homogeneity_score(y_train, labels_predicted)
+    print(f"Homogeneity Score: {score}.")
+
+    score = metrics.completeness_score(y_train, labels_predicted)
+    print(f"Completeness Score: {score}.")
+
+    score = metrics.v_measure_score(y_train, labels_predicted)
+    print(f"V Measure Score: {score}.")
+
+    score = metrics.fowlkes_mallows_score(y_train, labels_predicted)
+    print(f"Fowlkes Mallows Score: {score}.")
 
 if __name__ == "__main__":
     signscan()
