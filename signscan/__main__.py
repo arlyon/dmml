@@ -14,9 +14,10 @@ import pandas
 from sklearn import naive_bayes, metrics
 from sklearn.base import BaseEstimator
 from sklearn.utils import column_or_1d
-from sklearn.cluster import KMeans, k_means
+from sklearn.cluster import KMeans, k_means, AgglomerativeClustering
 from sklearn.preprocessing import scale
 from sklearn.feature_selection import SelectKBest, VarianceThreshold
+from sklearn.mixture import GaussianMixture
 
 label_mapping = [
     "limit_60", "limit_80", "limit_80_lifted",
@@ -607,6 +608,111 @@ def count_samples(ctx):
 
     if show_plot:
         plt.show()
+
+
+@signscan.command()
+@click.pass_context
+def em_clustering(ctx):
+    """
+    Gaussian Mixture function to be run on dataset.
+    """
+    covariance_type='spherical'
+    n_components=10
+
+    print("loading data...")
+    x_train, _, y_train = load_data(ctx.obj["data_folder"], shuffle=False)
+
+    save_plot = ctx.obj["save_plot"]
+    show_plot = ctx.obj["show_plot"]
+
+    print("Running Gaussian Mixture...")
+
+    model = GaussianMixture(n_components=n_components, covariance_type=covariance_type, verbose=2)
+
+    labels_predicted = model.fit_predict(x_train)
+
+    y_train = column_or_1d(y_train)
+
+    if save_plot is not None:
+        os.makedirs(save_plot, exist_ok=True)
+        plt.savefig(os.path.join(save_plot, label + ".png"))
+
+    if show_plot:
+        plt.show()
+
+    score = metrics.adjusted_rand_score(y_train, labels_predicted)
+    print(f"Accuracy: {score}.")
+
+    score = metrics.homogeneity_score(y_train, labels_predicted)
+    print(f"Homogeneity Score: {score}.")
+
+    score = metrics.completeness_score(y_train, labels_predicted)
+    print(f"Completeness Score: {score}.")
+
+    score = metrics.v_measure_score(y_train, labels_predicted)
+    print(f"V Measure Score: {score}.")
+
+    score = metrics.fowlkes_mallows_score(y_train, labels_predicted)
+    print(f"Fowlkes Mallows Score: {score}.")
+
+@signscan.command()
+@click.pass_context
+def agglo_clustering(ctx):
+    """
+    Agglomerative clustering function to be run on dataset.
+    """
+    clusters = 10
+    linkage = 'ward'
+
+    print("loading data...")
+    x_train, _, y_train = load_data(ctx.obj["data_folder"], shuffle=False)
+
+    save_plot = ctx.obj["save_plot"]
+    show_plot = ctx.obj["show_plot"]
+
+    print("Running agglomerative clustering where linkage = {} and n_clusters = {}".format(linkage,clusters))
+
+    model = AgglomerativeClustering(linkage=linkage, n_clusters=clusters)
+    labels_predicted = model.fit_predict(x_train)
+
+    y_train = column_or_1d(y_train)
+    
+    """
+    attempt at graphing
+
+    agglomerative = pandas.DataFrame(labels_predicted)
+    x_train.insert((x_train.shape[1]),'agglomerative',agglomerative)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    scatter = ax.scatter(x_train['0'],x_train['1'],c=agglomerative[0],s=5)
+    ax.set_title('Agglomerative Clustering where linkage = {} and n_clusters = {}'.format(linkage, clusters))
+    ax.set_xlabel('limit_60')
+    ax.set_ylabel('limit_80')
+    plt.colorbar(scatter)
+
+    """
+    if save_plot is not None:
+        os.makedirs(save_plot, exist_ok=True)
+        plt.savefig(os.path.join(save_plot, label + ".png"))
+
+    if show_plot:
+        plt.show()
+
+    score = metrics.adjusted_rand_score(y_train, labels_predicted)
+    print(f"Accuracy: {score}.")
+
+    score = metrics.homogeneity_score(y_train, labels_predicted)
+    print(f"Homogeneity Score: {score}.")
+
+    score = metrics.completeness_score(y_train, labels_predicted)
+    print(f"Completeness Score: {score}.")
+
+    score = metrics.v_measure_score(y_train, labels_predicted)
+    print(f"V Measure Score: {score}.")
+
+    score = metrics.fowlkes_mallows_score(y_train, labels_predicted)
+    print(f"Fowlkes Mallows Score: {score}.")
 
 if __name__ == "__main__":
     signscan()
