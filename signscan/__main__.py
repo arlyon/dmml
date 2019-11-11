@@ -5,7 +5,6 @@ from collections import namedtuple, Counter
 from dataclasses import dataclass
 from os import path
 from typing import Tuple, Dict, Optional, List
-from pprint import pprint
 
 import click
 import matplotlib.pyplot as plt
@@ -17,7 +16,11 @@ from sklearn.utils import column_or_1d
 from sklearn.cluster import KMeans, k_means, AgglomerativeClustering
 from sklearn.preprocessing import scale
 from sklearn.feature_selection import SelectKBest, VarianceThreshold
+<<<<<<< HEAD
 from sklearn.mixture import GaussianMixture
+=======
+from pytan import DiscreteBayesNetClassifier
+>>>>>>> bayes net
 
 label_mapping = [
     "limit_60", "limit_80", "limit_80_lifted",
@@ -92,16 +95,16 @@ def load_data(folder: str, *, shuffle=True) -> Tuple[pandas.DataFrame, YTrain, p
     return x_train, YTrain(**y_train), all_labels
 
 
-def fit_labels(x_train, y_train: YTrain) -> Dict[str, BayesAnalysis]:
+def fit_labels(x_train, y_train: YTrain, classifier=naive_bayes.MultinomialNB) -> Dict[str, BayesAnalysis]:
     """For each label, create a bayes classifier for it."""
     return {
-        label: bayesian_classification(x_train, frame, n_correlated=len(x_train.columns))
+        label: bayesian_classification(x_train, frame, n_correlated=len(x_train.columns), classifier=classifier)
         for label, frame in y_train._asdict().items()
     }
 
 
-def bayesian_classification(train: pandas.DataFrame, labels: pandas.DataFrame, n_correlated=10) -> BayesAnalysis:
-    classifier = naive_bayes.MultinomialNB()
+def bayesian_classification(train: pandas.DataFrame, labels: pandas.DataFrame, n_correlated=10, classifier=naive_bayes.MultinomialNB) -> BayesAnalysis:
+    classifier = classifier()
     classifier.fit(train, column_or_1d(labels))
 
     labels = labels.copy()  # make a copy to avoid editing the given labels
@@ -612,6 +615,7 @@ def count_samples(ctx):
 
 @signscan.command()
 @click.pass_context
+<<<<<<< HEAD
 def em_clustering(ctx):
     """
     Gaussian Mixture function to be run on dataset.
@@ -678,6 +682,43 @@ def agglo_clustering(ctx):
 
     score = metrics.fowlkes_mallows_score(y_train, labels_predicted)
     print(f"Fowlkes Mallows Score: {score}.")
+=======
+def bayes_network_TAN(ctx):
+    """
+    Bayesian Network and make conclusions.
+
+    - https://github.com/arlyon/dmml/issues/8
+
+    """
+    print("loading data...")
+    x_train, y_train, labels = load_data(ctx.obj["data_folder"])
+    assert x_train is not None
+
+    print("")
+    print("running bayesian network classification on all features...")
+
+    save_plot = ctx.obj["save_plot"]
+    show_plot = ctx.obj["show_plot"]
+
+    label_classifiers = fit_labels(x_train, y_train, classifier=DiscreteBayesNetClassifier)
+
+    for label, analysis in label_classifiers.items():
+        accuracy = f"{analysis.correct_count} out of {analysis.total_count} ({analysis.correct_count / analysis.total_count * 100:.2f}%)"
+        print(f" - {click.style(label, fg='green')}: {click.style(accuracy, fg='bright_black')}")
+        print(f"   {click.style(str(len(analysis.top_features[:10])), fg='yellow')} most correlated pixels: {click.style(', '.join(analysis.top_features[:10].pixel_coords()), fg='bright_black')}")
+
+        plt.imshow(analysis.heat_map, cmap='hot', interpolation='lanczos')
+        plt.title("Heatmap for " + label)
+
+        if save_plot is not None:
+            os.makedirs(save_plot, exist_ok=True)
+            plt.savefig(os.path.join(save_plot, label + ".png"))
+
+        if show_plot:
+            plt.show()
+
+    print(f"average accuracy: {sum(analysis.correct_count / analysis.total_count for analysis in label_classifiers.values()) / len(label_classifiers) * 100:.2f}%")
+>>>>>>> bayes net
 
 if __name__ == "__main__":
     signscan()
