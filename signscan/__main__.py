@@ -375,10 +375,7 @@ def k_clustering(ctx, sweep_features, sweep_variance, sweep_clusters):
          print(f"Ideal number of clusters is {best_cluster_n}.")
     
     print("Analysis Completed.")
-
-    
-
-    
+  
 def feature_sweep(features, boolean_labels, labels, seed, save_plot, show_plot, n_features=20):
     """
     Performs a sweep of top 'n_features' bayesian features per label, top 'n_features' bayesian features overall
@@ -462,11 +459,7 @@ def feature_sweep(features, boolean_labels, labels, seed, save_plot, show_plot, 
     score = [v_score + rand for _, _, v_score, rand in [scores.values() for (_, scores) in k_best_analysis]]
     score = numpy.argmax(score)
     print(f"Best performance out of {n_features} features: {score}")
-    return score
-
-    
-            
-            
+    return score      
 
 def variance_sweep(features, labels, seed, save_plot, show_plot, step=500):
     """
