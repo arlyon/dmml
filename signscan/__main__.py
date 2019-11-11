@@ -16,11 +16,8 @@ from sklearn.utils import column_or_1d
 from sklearn.cluster import KMeans, k_means, AgglomerativeClustering
 from sklearn.preprocessing import scale
 from sklearn.feature_selection import SelectKBest, VarianceThreshold
-<<<<<<< HEAD
 from sklearn.mixture import GaussianMixture
-=======
 from pytan import DiscreteBayesNetClassifier
->>>>>>> bayes net
 
 label_mapping = [
     "limit_60", "limit_80", "limit_80_lifted",
@@ -615,7 +612,6 @@ def count_samples(ctx):
 
 @signscan.command()
 @click.pass_context
-<<<<<<< HEAD
 def em_clustering(ctx):
     """
     Gaussian Mixture function to be run on dataset.
@@ -682,7 +678,6 @@ def agglo_clustering(ctx):
 
     score = metrics.fowlkes_mallows_score(y_train, labels_predicted)
     print(f"Fowlkes Mallows Score: {score}.")
-=======
 def bayes_network_TAN(ctx):
     """
     Bayesian Network and make conclusions.
@@ -718,7 +713,6 @@ def bayes_network_TAN(ctx):
             plt.show()
 
     print(f"average accuracy: {sum(analysis.correct_count / analysis.total_count for analysis in label_classifiers.values()) / len(label_classifiers) * 100:.2f}%")
->>>>>>> bayes net
 
 if __name__ == "__main__":
     signscan()
