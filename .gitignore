@@ -194,7 +194,8 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-data/
+cw1/
+cw2/
 
 # Plot folders
 plots/
