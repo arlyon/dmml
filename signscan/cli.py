@@ -17,13 +17,14 @@ label_mapping = [
 YTrain = namedtuple("YTrain", label_mapping)
 
 
-def load_data(folder: str, *, shuffle=True) -> Tuple[pandas.DataFrame, YTrain, pandas.DataFrame]:
+def load_data(folder: str, *, shuffle=True, shuffle_seed=None) -> Tuple[pandas.DataFrame, YTrain, pandas.DataFrame]:
     """
     Loads the data from the provided folder.
     We have chosen not to shrink the data set.
 
     :param folder: The directory to load from.
     :param shuffle: Whether to shuffle the data.
+    :param shuffle_seed: The seed to use when generating.
     :returns:
         A tuple containing the images, and a YTrain mapping the images to labels..
         x_train is a dataframe of 12660 images and the greyscale values of its pixel data (normalized).
@@ -46,8 +47,11 @@ def load_data(folder: str, *, shuffle=True) -> Tuple[pandas.DataFrame, YTrain, p
                 all_labels = pandas.read_csv(path.join(folder, file), names=["label"], header=0)
 
     if shuffle:
-        numpy.random.seed(seed=42)
-        shuffled_indices = numpy.random.permutation(x_train.index)
+        random = numpy.random.RandomState()
+        if shuffle_seed is not None:
+            random.seed(shuffle_seed)
+
+        shuffled_indices = random.permutation(x_train.index)
         x_train = x_train.reindex(shuffled_indices)
         all_labels = all_labels.reindex(shuffled_indices)
         for key, y in y_train.items():
@@ -58,15 +62,17 @@ def load_data(folder: str, *, shuffle=True) -> Tuple[pandas.DataFrame, YTrain, p
 
 @click.group()
 @click.argument("data_folder")
+@click.option('--seed', help='The random seed. This program is deterministic, and so the seed must be set.', default=0)
 @click.option('--save-plot', help='The folder to output plots to.', default=None)
 @click.option('--show-plot', help='Whether to show plots.', is_flag=True)
 @click.pass_context
-def signscan(ctx, data_folder, save_plot, show_plot):
+def signscan(ctx, data_folder, seed, save_plot, show_plot):
     """Tool for demonstrating the various analyses required for coursework 1."""
 
     # store data so that other commands can use it
     ctx.ensure_object(dict)
     ctx.obj["data_folder"] = data_folder
+    ctx.obj["seed"] = seed
     ctx.obj["save_plot"] = save_plot
     ctx.obj["show_plot"] = show_plot
 
@@ -78,7 +84,7 @@ def count_samples(ctx):
     Outputs the number of samples for each discovered label.
     """
     print("loading data...")
-    x_train, y_train, _ = load_data(ctx.obj["data_folder"])
+    x_train, y_train, _ = load_data(ctx.obj["data_folder"], shuffle_seed=ctx.obj["seed"])
 
     print("")
     print("enumerated sample counts:")

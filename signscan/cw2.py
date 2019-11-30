@@ -14,7 +14,7 @@ def cw2(ctx):
     """
 
     print("loading data...")
-    x_train, y_train, labels = load_data(ctx.obj["data_folder"])
+    x_train, y_train, labels = load_data(ctx.obj["data_folder"], shuffle_seed=ctx.obj["seed"])
 
     print("")
     print("hello world")

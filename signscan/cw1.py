@@ -311,7 +311,7 @@ def bayes_simple(ctx):
     """
 
     print("loading data...")
-    x_train, y_train, labels = load_data(ctx.obj["data_folder"])
+    x_train, y_train, labels = load_data(ctx.obj["data_folder"], shuffle_seed=ctx.obj["seed"])
 
     print("")
     print("running bayesian classification on all features...")
@@ -377,7 +377,7 @@ def bayes_complex(ctx, n):
     """
 
     print("loading data...")
-    x_train, y_train, _ = load_data(ctx.obj["data_folder"])
+    x_train, y_train, _ = load_data(ctx.obj["data_folder"], shuffle_seed=ctx.obj["seed"])
 
     print("")
     print(f"building accuracy graph over {n} features sorted by correlation...")
@@ -439,7 +439,7 @@ def k_clustering(ctx, sweep_features, sweep_variance, sweep_clusters):
     show_plot = ctx.obj["show_plot"]
 
     print("loading data...")
-    features, boolean_labels, labels = load_data(ctx.obj["data_folder"])
+    features, boolean_labels, labels = load_data(ctx.obj["data_folder"], shuffle_seed=ctx.obj["seed"])
     n_samples, n_features = features.shape
     features_with_labels = features.copy()
     features_with_labels[n_features] = labels
@@ -530,7 +530,7 @@ def em_clustering(ctx):
     n_components=10
 
     print("loading data...")
-    x_train, _, y_train = load_data(ctx.obj["data_folder"], shuffle=False)
+    x_train, _, y_train = load_data(ctx.obj["data_folder"], shuffle_seed=ctx.obj["seed"])
 
     print("Running Gaussian Mixture...")
 
@@ -566,7 +566,7 @@ def agglo_clustering(ctx):
     linkage = 'ward'
 
     print("loading data...")
-    x_train, _, y_train = load_data(ctx.obj["data_folder"], shuffle=False)
+    x_train, _, y_train = load_data(ctx.obj["data_folder"], shuffle_seed=ctx.obj["seed"])
 
     print("Running agglomerative clustering where linkage = {} and n_clusters = {}".format(linkage,clusters))
 
@@ -601,7 +601,7 @@ def bayes_tan(ctx):
 
     """
     print("loading data...")
-    x_train, y_train, labels = load_data(ctx.obj["data_folder"])
+    x_train, y_train, labels = load_data(ctx.obj["data_folder"], shuffle_seed=ctx.obj["seed"])
     assert x_train is not None
 
     print("")
