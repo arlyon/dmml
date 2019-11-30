@@ -1,6 +1,7 @@
 import os
 import re
 from os import path
+import pickle
 
 import click
 import numpy
@@ -34,6 +35,11 @@ def load_data(folder: str, *, shuffle=True, shuffle_seed=None) -> Tuple[pandas.D
     x_train = None
     y_train = {}
     all_labels = None
+    cache = path.join(folder, "data.cache")
+
+    if path.exists(cache):
+        with open(cache, "rb") as cache:
+            return pickle.load(cache)
 
     with click.progressbar(os.listdir(folder)) as bar:
         for file in bar:
@@ -57,7 +63,11 @@ def load_data(folder: str, *, shuffle=True, shuffle_seed=None) -> Tuple[pandas.D
         for key, y in y_train.items():
             y_train[key] = y.reindex(shuffled_indices)
 
-    return x_train, YTrain(**y_train), all_labels
+    data = (x_train, YTrain(**y_train), all_labels)
+    with open(cache, "wb") as cache:
+        pickle.dump(data, cache)
+
+    return data
 
 
 @click.group()
