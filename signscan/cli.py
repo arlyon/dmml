@@ -73,7 +73,7 @@ def load_data(folder: str, *, shuffle=True, shuffle_seed=None) -> Tuple[pandas.D
 @click.group()
 @click.argument("data_folder")
 @click.option('--seed', help='The random seed. This program is deterministic, and so the seed must be set.', default=0)
-@click.option('--save-plot', help='The folder to output plots to.', default=None)
+@click.option('--save-plot', help='The folder to output plots to.', default=None, type=click.Path(file_okay=False, dir_okay=True, exists=True))
 @click.option('--show-plot', help='Whether to show plots.', is_flag=True)
 @click.pass_context
 def signscan(ctx, data_folder, seed, save_plot, show_plot):
