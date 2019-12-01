@@ -1,4 +1,5 @@
 from enum import Enum
+import logging
 
 import click
 import tensorflow as tf
@@ -25,6 +26,7 @@ class TrainingType(Enum):
 @click.option("--model-dir", type=click.Path(file_okay=False, dir_okay=True, exists=True))
 @click.pass_context
 def neural_net(ctx, train_type: TrainingType, train_elements_move: int, model_dir: str):
+    tf.debugging.set_log_device_placement(True)
 
     print("loading data...")
     train_images, train_labels = load_data(ctx.obj["data_folder"], shuffle_seed=ctx.obj["seed"])
@@ -48,3 +50,13 @@ def neural_net(ctx, train_type: TrainingType, train_elements_move: int, model_di
     ))
 
     print("success")
+
+
+def make_input_func(x_train, y_train, epochs=10, batch_size=32, shuffle=True):
+    def input_func():
+        dataset = tf.data.Dataset.from_tensor_slices((dict(x_train), y_train.values))
+        if shuffle:
+            dataset = dataset.shuffle(1000)
+        dataset = dataset.batch(batch_size).repeat(epochs)
+        return dataset
+    return input_func
