@@ -71,6 +71,8 @@ def randomforest(ctx, train_type: TrainingType):
 
     clf.fit(x_train, y_train)
 
+    print("Random Forest Parameters: n_estimators=", len(clf.estimators_), ", min_samples_split=", clf.min_samples_split, ", min_samples_leaf=", clf.min_samples_leaf)
+
     predicted_labels = clf.predict(x_test)
 
     '''
@@ -96,17 +98,17 @@ def randomforest(ctx, train_type: TrainingType):
     class_precision = metrics.precision_score(y_test, predicted_labels, average=None)
 
     print('Precision for Each Class:', class_precision)
-    print('Global Precision:', metrics.precision_score(y_test, predicted_labels, average='micro'))
+    print('Mean Precision:', metrics.precision_score(y_test, predicted_labels, average='micro'))
 
     class_recall = metrics.recall_score(y_test, predicted_labels, average=None)
 
     print('Recall for Each Class:', class_recall)
-    print('Global Recall:', metrics.recall_score(y_test, predicted_labels, average='micro'))
+    print('Mean Recall:', metrics.recall_score(y_test, predicted_labels, average='micro'))
 
     class_f_measure = metrics.f1_score(y_test, predicted_labels, average=None)
 
     print('F Measure for Each Class:', class_f_measure)
-    print('Global F Measure:', metrics.f1_score(y_test, predicted_labels, average='micro'))
+    print('Mean F Measure:', metrics.f1_score(y_test, predicted_labels, average='micro'))
 
     plt.plot(class_precision, label='Class Precision')
     plt.plot(class_recall, label='Class Recall')
