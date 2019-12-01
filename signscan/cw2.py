@@ -6,16 +6,15 @@ import seaborn as sns
 
 from signscan.cli import signscan, load_data
 from sklearn import tree
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.tree import DecisionTreeClassifier # Import Decision Tree Classifier
 from sklearn.tree import export_graphviz
-from sklearn.model_selection import train_test_split
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import train_test_split # Import train_test_split function
+from sklearn.model_selection import cross_val_score # Import cross_val_score function
 from sklearn import metrics #Import scikit-learn metrics module for accuracy calculation
 from sklearn.metrics import confusion_matrix
 
 from sklearn.externals.six import StringIO
 from sklearn import preprocessing
-
 
 class EnumType(click.Choice):
     def __init__(self, enum):
@@ -46,9 +45,6 @@ def decisiontree_j48(ctx, train_type: TrainingType):
     elif train_type is TrainingType.TRAIN_TEST:
         test_images, test_labels = load_data("./cw2", shuffle_seed=ctx.obj["seed"])
 
-    # to split the data into 70% training and 30% test
-    #train_images, split_image, train_labels, split_labels = train_test_split(x_train, y_train, test_size=0.3, random_state=42)
-
 
     print("")
     print("running decision tree j48...")
@@ -56,14 +52,14 @@ def decisiontree_j48(ctx, train_type: TrainingType):
     clf.fit(train_images, train_labels)
 
     print("")
-    print("Predicting using CROSS_VALIDATION...")
+    print("Predicting using CROSS_VALIDATION:")
     predicted_labels = clf.predict(train_images)
     print("Accuracy: ",metrics.accuracy_score(train_labels, predicted_labels))
+
     # TP Rate and FP Rate
-    print("running confusion_matrix...")
+    print("running confusion_matrix for TP RAte and FP Rate...")
     cm = confusion_matrix(train_labels, predicted_labels)
     #fp_rate = confusion_matrix.sum(axis=0) - np.diag(confusion_matrix)
-
     ax = plt.subplot()
     sns.heatmap(cm, annot=True, ax=ax, fmt='g')
     # labels and title
@@ -73,9 +69,9 @@ def decisiontree_j48(ctx, train_type: TrainingType):
     plt.show()
 
     print("")
-    print("Predicting using TRAIN_TEST...")
+    print("Predicting using TRAIN_TEST:")
     predicted_labels = clf.predict(test_images)
-    print("Accuracy: ",metrics.accuracy_score(test_labels, predicted_labels))
+    print("Accuracy:",metrics.accuracy_score(test_labels, predicted_labels))
 
     #score = cross_val_score(predicted_labels, test_labelscv=5)
     #print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
@@ -83,8 +79,6 @@ def decisiontree_j48(ctx, train_type: TrainingType):
     #scores = cross_val_score(clf, train_images, train_labels, cv=5)
     #print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
 
-    print("")
-    print("Visualizing Decision Trees...")
 
     #print("spliting data into training & testing...")
     # 70% training and 30% test
