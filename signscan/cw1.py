@@ -158,7 +158,6 @@ def feature_sweep(features, boolean_labels, labels, seed, save_plot, show_plot, 
         plt.xlabel("Number of Features")
         plt.title("Comparison of Feature Selection Algorithms")
         if save_plot is not None:
-            os.makedirs(save_plot, exist_ok=True)
             path = os.path.join(save_plot, "feature_sweep.png")
             plt.savefig(path)
             print("")
@@ -219,7 +218,6 @@ def variance_sweep(features, labels, seed, save_plot, show_plot, step=500):
         plt.xlabel("Variance Threshold for Feature Selection")
         plt.title("Effect of Variance Threshold Feature Selection")
         if save_plot is not None:
-            os.makedirs(save_plot, exist_ok=True)
             path = os.path.join(save_plot, "variance_sweep.png")
             plt.savefig(path)
             print("")
@@ -268,7 +266,6 @@ def cluster_sweep(features, labels, seed, save_plot, show_plot, n_clusters=20, s
         plt.xlabel("Number of Clusters")
         plt.title("Performance Comparison with K-Clusters")
         if save_plot is not None:
-            os.makedirs(save_plot, exist_ok=True)
             path = os.path.join(save_plot, "cluster_sweep.png")
             plt.savefig(path)
             print("")
@@ -330,7 +327,6 @@ def bayes_simple(ctx):
         plt.title("Heatmap for " + label)
 
         if save_plot is not None:
-            os.makedirs(save_plot, exist_ok=True)
             plt.savefig(os.path.join(save_plot, label + ".png"))
 
         if show_plot:
@@ -347,7 +343,6 @@ def bayes_simple(ctx):
     plt.ylabel("actual label")
 
     if save_plot is not None:
-        os.makedirs(save_plot, exist_ok=True)
         plt.savefig(os.path.join(save_plot, "mislabeled.png"))
 
     if show_plot:
@@ -415,7 +410,6 @@ def bayes_complex(ctx, n):
     plt.title("Accuracy using n top correlating features for each label")
 
     if save_plot is not None:
-        os.makedirs(save_plot, exist_ok=True)
         path = os.path.join(save_plot, "feature_accuracy.png")
         plt.savefig(path)
         print("")
@@ -478,7 +472,6 @@ def k_clustering(ctx, sweep_features, sweep_variance, sweep_clusters):
     plt.xlabel("Cluster Centroid Label")
     plt.ylabel("Actual Label")
     if save_plot is not None:
-        os.makedirs(save_plot, exist_ok=True)
         path = os.path.join(save_plot, "base_prediction_matrix.png")
         plt.savefig(path)
         print("")
@@ -502,7 +495,6 @@ def k_clustering(ctx, sweep_features, sweep_variance, sweep_clusters):
     plt.xlabel("Cluster Centroid Label")
     plt.ylabel("Actual Label")
     if save_plot is not None:
-        os.makedirs(save_plot, exist_ok=True)
         path = os.path.join(save_plot, "optimal_prediction_matrix.png")
         plt.savefig(path)
         print("")
@@ -621,7 +613,6 @@ def bayes_tan(ctx):
         plt.title("Heatmap for " + label)
 
         if save_plot is not None:
-            os.makedirs(save_plot, exist_ok=True)
             plt.savefig(os.path.join(save_plot, label + ".png"))
 
         if show_plot:

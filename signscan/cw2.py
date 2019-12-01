@@ -5,13 +5,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from sklearn.metrics import confusion_matrix
-
-
+from enum import Enum
 from signscan.cli import signscan, load_data
 from sklearn.ensemble import RandomForestClassifier
 from sklearn import metrics
 from sklearn import tree
-
 
 @signscan.command()
 @click.pass_context
@@ -27,19 +25,44 @@ def cw2(ctx):
     x_train, y_train, labels = load_data(ctx.obj["data_folder"])
 
 
+class EnumType(click.Choice):
+    def __init__(self, enum):
+        self._enum = enum
+        super().__init__([e.value for e in enum])
+
+    def convert(self, value, param, ctx):
+        return self._enum(super().convert(value, param, ctx))
+
+
+class TrainingType(Enum):
+    CROSS_VALIDATION = "cross-validation"
+    TRAIN_TEST = "train-test"
+
+
 @signscan.command()
+@click.option("--train-type", type=EnumType(TrainingType), required=True)
 @click.pass_context
-def randomforest(ctx):
+def randomforest(ctx, train_type: TrainingType):
     """
     Running Random Forest Classifier on the data
     """
 
-    print("Loading data...")
-    x_train, y_train, true_labels = load_data(ctx.obj["data_folder"])
+    print("loading data...")
+
+    data = load_data(ctx.obj["data_folder"], shuffle_seed=ctx.obj["seed"])
+    x_train = data[0]
+    y_train = data[1]
+    true_labels = data[2]
+
+    # to switch between cross-validation and train-test Classifier
+    if train_type is TrainingType.CROSS_VALIDATION:
+        pass
+    elif train_type is TrainingType.TRAIN_TEST:
+        x_test, y_test = load_data("./cw2", shuffle_seed=ctx.obj["seed"])
 
     print("Running Random Forest...")
 
-    clf = RandomForestClassifier(n_estimators=10, min_samples_split=100, min_samples_leaf=75)
+    clf = RandomForestClassifier(n_estimators=10, min_samples_split=50, min_samples_leaf=75)
 
     clf.fit(x_train, true_labels)
 
@@ -108,7 +131,7 @@ def randomforest(ctx):
     print('Root Mean Squared Error:', np.sqrt(metrics.mean_squared_error(true_labels, predicted_labels)))
 
     '''
-    visualise trees in forest
+    Visualise trees in forest
     '''
     i_tree = 0
     for tree_in_forest in clf.estimators_:
