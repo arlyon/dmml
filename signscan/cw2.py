@@ -32,6 +32,7 @@ def decisiontree_j48(ctx, train_type: TrainingType):
     """
     print("loading data...")
     train_images, train_labels = load_data(ctx.obj["data_folder"], shuffle_seed=ctx.obj["seed"])
+    assert train_images is not None
 
     #to switch between cross-validation and train-test Classifier
     if train_type is TrainingType.CROSS_VALIDATION:
@@ -39,9 +40,27 @@ def decisiontree_j48(ctx, train_type: TrainingType):
     elif train_type is TrainingType.TRAIN_TEST:
         test_images, test_labels = load_data("./cw2", shuffle_seed=ctx.obj["seed"])
 
-    print("", train_labels)
+
+    print("")
     print("running decision tree j48...")
-    #clf = DecisionTreeClassifier(random_state=0) # Create Decision Tree
+    clf = DecisionTreeClassifier(random_state=0, min_samples_split=100, min_samples_leaf=75)
+    clf.fit(train_images, train_labels)
+
+    print("")
+    print("predicting labels...")
+    predicted_labels = clf.predict(test_images)
+    print("Accuracy:",metrics.accuracy_score(test_labels, predicted_labels))
+
+    #score = cross_val_score(predicted_labels, test_labelscv=5)
+    #print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
+
+
+
+    '''
+    TP Rate and FP Rate
+    '''
+    #scores = cross_val_score(clf, train_images, train_labels, cv=5)
+    #print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
 
 
     #print("spliting data into training & testing...")
@@ -49,12 +68,6 @@ def decisiontree_j48(ctx, train_type: TrainingType):
     #X_train, X_test, Y_train, Y_test = train_test_split(x_train, labels, test_size=0.3, random_state=0)
     #scaler = preprocessing.StandardScaler().fit(X_train)
     #X_train_transformed = scaler.transform(X_train)
-
-    #print("Building Dercision Tree Model using J48 or C45  ")
-    #clf = DecisionTreeClassifier(random_state=0) # Create Decision Tree
-    #print("cross validation...")
-    #scores = cross_val_score(clf, x_train, labels, cv=5)
-    #print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
 
     #print("train-test validation...")
     #clf = clf.fit(X_train_transformed, y_test) # Train Decision Tree
