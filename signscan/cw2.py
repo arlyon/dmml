@@ -1,8 +1,8 @@
 import click
 import numpy as np
-#import graphviz
+import graphviz
 import matplotlib.pyplot as plt
-#import seaborn as sns
+import seaborn as sns
 
 from sklearn.metrics import confusion_matrix
 from enum import Enum
@@ -57,21 +57,19 @@ def randomforest(ctx, train_type: TrainingType):
     elif train_type is TrainingType.TRAIN_TEST:
         x_test, y_test = load_data("./cw2", shuffle_seed=ctx.obj["seed"])
 
-    print("Running Random Forest...", y_train)
-    """
-    clf = RandomForestClassifier(n_estimators=10, min_samples_split=50, min_samples_leaf=75)
+    print("Running Random Forest...")
 
-    clf.fit(x_train, true_labels)
+    clf = RandomForestClassifier(oob_score=True, n_estimators=15, min_samples_split=50, min_samples_leaf=75)
+
+    clf.fit(x_train, y_train)
 
     predicted_labels = clf.predict(x_train)
-
-    print(clf.score(x_train, true_labels))
 
     '''
     TP and FP Rate
     '''
 
-    cm = confusion_matrix(true_labels, predicted_labels)
+    cm = confusion_matrix(y_train, predicted_labels)
 
     ax = plt.subplot()
     sns.heatmap(cm, annot=True, ax=ax, fmt='g')
@@ -87,20 +85,20 @@ def randomforest(ctx, train_type: TrainingType):
     Precision, Recall and, F Measure
     '''
 
-    class_precision = metrics.precision_score(true_labels, predicted_labels, average=None)
+    class_precision = metrics.precision_score(y_train, predicted_labels, average=None)
 
     print('Precision for Each Class:', class_precision)
-    print('Global Precision:', metrics.precision_score(true_labels, predicted_labels, average='micro'))
+    print('Global Precision:', metrics.precision_score(y_train, predicted_labels, average='micro'))
 
-    class_recall = metrics.recall_score(true_labels, predicted_labels, average=None)
+    class_recall = metrics.recall_score(y_train, predicted_labels, average=None)
 
     print('Recall for Each Class:', class_recall)
-    print('Global Recall:', metrics.recall_score(true_labels, predicted_labels, average='micro'))
+    print('Global Recall:', metrics.recall_score(y_train, predicted_labels, average='micro'))
 
-    class_f_measure = metrics.f1_score(true_labels, predicted_labels, average=None)
+    class_f_measure = metrics.f1_score(y_train, predicted_labels, average=None)
 
     print('F Measure for Each Class:', class_f_measure)
-    print('Global F Measure:', metrics.f1_score(true_labels, predicted_labels, average='micro'))
+    print('Global F Measure:', metrics.f1_score(y_train, predicted_labels, average='micro'))
 
     plt.plot(class_precision, label='Class Precision')
     plt.plot(class_recall, label='Class Recall')
@@ -123,9 +121,13 @@ def randomforest(ctx, train_type: TrainingType):
     Misc Metrics
     '''
 
-    print('Mean Absolute Error:', metrics.mean_absolute_error(true_labels, predicted_labels))
-    print('Mean Squared Error:', metrics.mean_squared_error(true_labels, predicted_labels))
-    print('Root Mean Squared Error:', np.sqrt(metrics.mean_squared_error(true_labels, predicted_labels)))
+    print('Mean Absolute Error:', metrics.mean_absolute_error(y_train, predicted_labels))
+    print('Mean Squared Error:', metrics.mean_squared_error(y_train, predicted_labels))
+    print('Root Mean Squared Error:', np.sqrt(metrics.mean_squared_error(y_train, predicted_labels)))
+
+    print('Accuracy on Training Set: ', clf.score(x_train, y_train))
+    print('OOB Score: ', clf.oob_score_)
+    print('Accuracy on Test Set: ', clf.score(x_test, y_test))
 
     '''
     Visualise trees in forest
@@ -136,5 +138,3 @@ def randomforest(ctx, train_type: TrainingType):
         graph = graphviz.Source(dot_data)
         graph.render(f'{"tree_"}{i_tree}')
         i_tree = i_tree + 1
-
-    """
