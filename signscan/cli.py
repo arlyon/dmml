@@ -18,23 +18,21 @@ label_mapping = [
 YTrain = namedtuple("YTrain", label_mapping)
 
 
-def load_data(folder: str, *, shuffle=True, shuffle_seed=None) -> Tuple[pandas.DataFrame, YTrain, pandas.DataFrame]:
+def load_data(folder: str, *, shuffle=True, shuffle_seed=None) -> Tuple[pandas.DataFrame, pandas.Series]:
     """
     Loads the data from the provided folder.
     We have chosen not to shrink the data set.
-
     :param folder: The directory to load from.
     :param shuffle: Whether to shuffle the data.
     :param shuffle_seed: The seed to use when generating.
     :returns:
-        A tuple containing the images, and a YTrain mapping the images to labels..
-        x_train is a dataframe of 12660 images and the greyscale values of its pixel data (normalized).
-        y_train is a set of dataframes that associate an given image with a label.
+        A tuple of (images, labels)
+        images is a dataframe of 12660 images and the greyscale values of its pixel data (normalized).
+        labels is a series that associate an given image with a label.
     """
 
-    x_train = None
-    y_train = {}
-    all_labels = None
+    images = None
+    labels = None
     cache = path.join(folder, "data.cache")
 
     if path.exists(cache):
@@ -43,27 +41,21 @@ def load_data(folder: str, *, shuffle=True, shuffle_seed=None) -> Tuple[pandas.D
 
     with click.progressbar(os.listdir(folder)) as bar:
         for file in bar:
-            if re.match(".+([0-9]).csv", file):
-                frame = pandas.read_csv(path.join(folder, file), names=["label"], header=0)
-                frame["label"] = frame["label"] == 0  # convert to bool
-                y_train[label_mapping[int(file[-5])]] = frame
-            elif "x_train" in file:
-                x_train = pandas.read_csv(path.join(folder, file))
-            elif "y_train" in file:
-                all_labels = pandas.read_csv(path.join(folder, file), names=["label"], header=0)
+            if re.match("x_([a-z]+)_gr_smpl.csv", file):
+                images = pandas.read_csv(path.join(folder, file), dtype='uint8')
+            if re.match("y_([a-z]+)_smpl.csv", file):
+                labels = pandas.read_csv(path.join(folder, file), header=0, dtype='int32').iloc[:,0]
 
     if shuffle:
         random = numpy.random.RandomState()
         if shuffle_seed is not None:
             random.seed(shuffle_seed)
 
-        shuffled_indices = random.permutation(x_train.index)
-        x_train = x_train.reindex(shuffled_indices)
-        all_labels = all_labels.reindex(shuffled_indices)
-        for key, y in y_train.items():
-            y_train[key] = y.reindex(shuffled_indices)
+        shuffled_indices = random.permutation(images.index)
+        images = images.reindex(shuffled_indices)
+        labels = labels.reindex(shuffled_indices)
 
-    data = (x_train, YTrain(**y_train), all_labels)
+    data = (images, labels)
     with open(cache, "wb") as cache:
         pickle.dump(data, cache)
 
@@ -73,7 +65,7 @@ def load_data(folder: str, *, shuffle=True, shuffle_seed=None) -> Tuple[pandas.D
 @click.group()
 @click.argument("data_folder")
 @click.option('--seed', help='The random seed. This program is deterministic, and so the seed must be set.', default=0)
-@click.option('--save-plot', help='The folder to output plots to.', default=None)
+@click.option('--save-plot', help='The folder to output plots to.', default=None, type=click.Path(file_okay=False, dir_okay=True, exists=True))
 @click.option('--show-plot', help='Whether to show plots.', is_flag=True)
 @click.pass_context
 def signscan(ctx, data_folder, seed, save_plot, show_plot):
