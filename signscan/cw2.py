@@ -6,6 +6,9 @@ import seaborn as sns
 
 from sklearn.metrics import confusion_matrix
 from enum import Enum
+
+from sklearn.model_selection import train_test_split
+
 from signscan.cli import signscan, load_data
 from sklearn.ensemble import RandomForestClassifier
 from sklearn import metrics
@@ -57,19 +60,24 @@ def randomforest(ctx, train_type: TrainingType):
     elif train_type is TrainingType.TRAIN_TEST:
         x_test, y_test = load_data("./cw2", shuffle_seed=ctx.obj["seed"])
 
+    x_train, x_split, y_train, y_split = train_test_split(x_train, y_train, test_size=0.3, random_state=42)
+
+    x_test = x_test.append(x_split)
+    y_test = y_test.append(y_split)
+
     print("Running Random Forest...")
 
     clf = RandomForestClassifier(oob_score=True, n_estimators=15, min_samples_split=50, min_samples_leaf=75)
 
     clf.fit(x_train, y_train)
 
-    predicted_labels = clf.predict(x_train)
+    predicted_labels = clf.predict(x_test)
 
     '''
     TP and FP Rate
     '''
 
-    cm = confusion_matrix(y_train, predicted_labels)
+    cm = confusion_matrix(y_test, predicted_labels)
 
     ax = plt.subplot()
     sns.heatmap(cm, annot=True, ax=ax, fmt='g')
@@ -85,20 +93,20 @@ def randomforest(ctx, train_type: TrainingType):
     Precision, Recall and, F Measure
     '''
 
-    class_precision = metrics.precision_score(y_train, predicted_labels, average=None)
+    class_precision = metrics.precision_score(y_test, predicted_labels, average=None)
 
     print('Precision for Each Class:', class_precision)
-    print('Global Precision:', metrics.precision_score(y_train, predicted_labels, average='micro'))
+    print('Global Precision:', metrics.precision_score(y_test, predicted_labels, average='micro'))
 
-    class_recall = metrics.recall_score(y_train, predicted_labels, average=None)
+    class_recall = metrics.recall_score(y_test, predicted_labels, average=None)
 
     print('Recall for Each Class:', class_recall)
-    print('Global Recall:', metrics.recall_score(y_train, predicted_labels, average='micro'))
+    print('Global Recall:', metrics.recall_score(y_test, predicted_labels, average='micro'))
 
-    class_f_measure = metrics.f1_score(y_train, predicted_labels, average=None)
+    class_f_measure = metrics.f1_score(y_test, predicted_labels, average=None)
 
     print('F Measure for Each Class:', class_f_measure)
-    print('Global F Measure:', metrics.f1_score(y_train, predicted_labels, average='micro'))
+    print('Global F Measure:', metrics.f1_score(y_test, predicted_labels, average='micro'))
 
     plt.plot(class_precision, label='Class Precision')
     plt.plot(class_recall, label='Class Recall')
@@ -121,9 +129,9 @@ def randomforest(ctx, train_type: TrainingType):
     Misc Metrics
     '''
 
-    print('Mean Absolute Error:', metrics.mean_absolute_error(y_train, predicted_labels))
-    print('Mean Squared Error:', metrics.mean_squared_error(y_train, predicted_labels))
-    print('Root Mean Squared Error:', np.sqrt(metrics.mean_squared_error(y_train, predicted_labels)))
+    print('Mean Absolute Error:', metrics.mean_absolute_error(y_test, predicted_labels))
+    print('Mean Squared Error:', metrics.mean_squared_error(y_test, predicted_labels))
+    print('Root Mean Squared Error:', np.sqrt(metrics.mean_squared_error(y_test, predicted_labels)))
 
     print('Accuracy on Training Set: ', clf.score(x_train, y_train))
     print('OOB Score: ', clf.oob_score_)
