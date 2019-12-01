@@ -32,7 +32,7 @@ def decisiontree_j48(ctx, train_type: TrainingType):
     elif train_type is TrainingType.TRAIN_TEST:
         test_images, test_labels = load_data("./cw2", shuffle_seed=ctx.obj["seed"])
 
-    print("")
+    print("", train_labels)
     print("running decision tree j48...")
     #clf = DecisionTreeClassifier(random_state=0) # Create Decision Tree
 
@@ -49,10 +49,10 @@ def decisiontree_j48(ctx, train_type: TrainingType):
     #scores = cross_val_score(clf, x_train, labels, cv=5)
     #print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
 
-    print("train-test validation...")
-    clf = clf.fit(X_train_transformed, y_test) # Train Decision Tree
-    X_test_transformed = scaler.transform(X_test)
-    clf.score(X_test_transformed, y_test)
+    #print("train-test validation...")
+    #clf = clf.fit(X_train_transformed, y_test) # Train Decision Tree
+    #X_test_transformed = scaler.transform(X_test)
+    #clf.score(X_test_transformed, y_test)
 
     #y_pred = clf.predict(labels) # Predict the response for test dataset
     #print("Accuracy:",metrics.accuracy_score(Y_test, y_pred))
