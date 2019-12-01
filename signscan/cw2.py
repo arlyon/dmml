@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from sklearn.metrics import confusion_matrix
+
+
 from signscan.cli import signscan, load_data
 from sklearn.ensemble import RandomForestClassifier
 from sklearn import metrics
@@ -32,12 +34,12 @@ def randomforest(ctx):
     Running Random Forest Classifier on the data
     """
 
-    print("loading data...")
+    print("Loading data...")
     x_train, y_train, true_labels = load_data(ctx.obj["data_folder"])
 
     print("Running Random Forest...")
 
-    clf = RandomForestClassifier(n_estimators=10, min_samples_split=10, min_samples_leaf=75)
+    clf = RandomForestClassifier(n_estimators=10, min_samples_split=100, min_samples_leaf=75)
 
     clf.fit(x_train, true_labels)
 
@@ -85,7 +87,7 @@ def randomforest(ctx):
     plt.plot(class_f_measure, label='Class F Measure')
     plt.legend()
     plt.grid()
-    plt.xticks([0,1,2,3,4,5,6,7,8,9])
+    plt.xticks([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
     plt.title("Metric Data for each Class")
     plt.xlabel("Class")
     plt.ylabel("Value")
@@ -108,7 +110,6 @@ def randomforest(ctx):
     '''
     visualise trees in forest
     '''
-
     i_tree = 0
     for tree_in_forest in clf.estimators_:
         dot_data = tree.export_graphviz(tree_in_forest, out_file=None)
