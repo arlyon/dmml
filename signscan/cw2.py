@@ -25,6 +25,7 @@ class TrainingType(Enum):
 @click.option("--model-dir", type=click.Path(file_okay=False, dir_okay=True, exists=True))
 @click.pass_context
 def neural_net(ctx, train_type: TrainingType, train_elements_move: int, model_dir: str):
+    tf.debugging.set_log_device_placement(True)
 
     print("loading data...")
     train_images, train_labels = load_data(ctx.obj["data_folder"], shuffle_seed=ctx.obj["seed"])
