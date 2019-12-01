@@ -58,7 +58,7 @@ def decisiontree_j48(ctx, train_type: TrainingType):
     print("")
     print("Predicting using CROSS_VALIDATION...")
     predicted_labels = clf.predict(train_images)
-    #print("Accuracy: ",metrics.accuracy_score(train_labels, predicted_labels))
+    print("Accuracy: ",metrics.accuracy_score(train_labels, predicted_labels))
     # TP Rate and FP Rate
     print("running confusion_matrix...")
     cm = confusion_matrix(train_labels, predicted_labels)
