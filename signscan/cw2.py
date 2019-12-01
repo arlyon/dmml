@@ -2,7 +2,14 @@ from enum import Enum
 import click
 
 from signscan.cli import signscan, load_data
-
+from sklearn import tree
+from sklearn.tree import DecisionTreeClassifier # Import Decision Tree Classifier
+from sklearn.model_selection import train_test_split # Import train_test_split function
+from sklearn.model_selection import cross_val_score # Import cross_val_score function
+from sklearn import metrics #Import scikit-learn metrics module for accuracy calculation
+from sklearn.tree import export_graphviz
+from sklearn.externals.six import StringIO
+from sklearn import preprocessing
 
 class EnumType(click.Choice):
     def __init__(self, enum):
