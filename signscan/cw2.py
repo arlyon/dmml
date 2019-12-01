@@ -1,5 +1,4 @@
 from enum import Enum
-import logging
 
 import click
 import tensorflow as tf
@@ -50,13 +49,3 @@ def neural_net(ctx, train_type: TrainingType, train_elements_move: int, model_di
     ))
 
     print("success")
-
-
-def make_input_func(x_train, y_train, epochs=10, batch_size=32, shuffle=True):
-    def input_func():
-        dataset = tf.data.Dataset.from_tensor_slices((dict(x_train), y_train.values))
-        if shuffle:
-            dataset = dataset.shuffle(1000)
-        dataset = dataset.batch(batch_size).repeat(epochs)
-        return dataset
-    return input_func
