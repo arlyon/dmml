@@ -1,8 +1,8 @@
 import click
 import numpy as np
-import graphviz
+#import graphviz
 import matplotlib.pyplot as plt
-import seaborn as sns
+#import seaborn as sns
 
 from sklearn.metrics import confusion_matrix
 from enum import Enum
@@ -49,10 +49,7 @@ def randomforest(ctx, train_type: TrainingType):
 
     print("loading data...")
 
-    data = load_data(ctx.obj["data_folder"], shuffle_seed=ctx.obj["seed"])
-    x_train = data[0]
-    y_train = data[1]
-    true_labels = data[2]
+    x_train, y_train = load_data(ctx.obj["data_folder"], shuffle_seed=ctx.obj["seed"])
 
     # to switch between cross-validation and train-test Classifier
     if train_type is TrainingType.CROSS_VALIDATION:
@@ -60,8 +57,8 @@ def randomforest(ctx, train_type: TrainingType):
     elif train_type is TrainingType.TRAIN_TEST:
         x_test, y_test = load_data("./cw2", shuffle_seed=ctx.obj["seed"])
 
-    print("Running Random Forest...")
-
+    print("Running Random Forest...", y_train)
+    """
     clf = RandomForestClassifier(n_estimators=10, min_samples_split=50, min_samples_leaf=75)
 
     clf.fit(x_train, true_labels)
@@ -87,7 +84,7 @@ def randomforest(ctx, train_type: TrainingType):
     plt.show()
 
     '''
-    Precision, Recall and, F Measure 
+    Precision, Recall and, F Measure
     '''
 
     class_precision = metrics.precision_score(true_labels, predicted_labels, average=None)
@@ -139,3 +136,5 @@ def randomforest(ctx, train_type: TrainingType):
         graph = graphviz.Source(dot_data)
         graph.render(f'{"tree_"}{i_tree}')
         i_tree = i_tree + 1
+
+    """
