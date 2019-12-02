@@ -1,4 +1,4 @@
-name: C:\Users\Jerome\PycharmProjects\dmml\env
+name: F:\Program Files\Programming\PycharmProjects\dmml\env
 channels:
   - defaults
 dependencies:
@@ -70,5 +70,5 @@ dependencies:
     - joblib==0.14.0
     - pytan==0.1.0
     - scikit-learn==0.21.3
-prefix: C:\Users\Jerome\PycharmProjects\dmml\env
+prefix: F:\Program Files\Programming\PycharmProjects\dmml\env
 
