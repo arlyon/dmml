@@ -46,11 +46,12 @@ def decisiontree_j48(ctx, train_type: TrainingType):
         pass
     elif train_type is TrainingType.TRAIN_TEST:
         test_images, test_labels = load_data("./cw2", shuffle_seed=ctx.obj["seed"])
-
-    # to change the testing size of the dataset
-    #train_images, split_images, train_labels, split_labels = train_test_split(x_train, y_train, test_size=1, random_state=42)
-    #test_images = test_images.append(split_images)
-    #test_labels = test_labels.append(split_labels)
+        # to change the testing size of the dataset
+        # 70% training and 30% test
+        print("Moving only 70% of data...")
+        train_images, split_images, train_labels, split_labels = train_test_split(train_images, train_labels, test_size=0.7, random_state=42)
+        test_images = test_images.append(split_images)
+        test_labels = test_labels.append(split_labels)
 
     print("")
     print("Running Decision Tree J48...")
@@ -112,7 +113,7 @@ def decisiontree_j48(ctx, train_type: TrainingType):
 
     '''
     Misc Metrics
-    '''
+
 
     print('Mean Absolute Error:', metrics.mean_absolute_error(train_labels, predicted_labels))
     print('Mean Squared Error:', metrics.mean_squared_error(train_labels, predicted_labels))
@@ -120,20 +121,84 @@ def decisiontree_j48(ctx, train_type: TrainingType):
 
     print('Accuracy on Training Set: ', clf.score(train_images, train_labels))
     print("Accuracy on KFold CROSS_VALIDATION: ",metrics.accuracy_score(train_labels, predicted_labels))
-    print('Accuracy on Test Set: ', clf.score(train_images, train_labels))
-
+    '''
     '''
     Visualise Decision Trees
-    '''
+
     dot_data = tree.export_graphviz(clf, out_file=None)
     graph = graphviz.Source(dot_data)
     graph.render(f'{"tree_"}')
+    '''
+
+    print("")
+    print("Task 5: TRAIN_TEST:")\
+
+    predicted_labels = clf.predict(test_images)
+    '''
+    TP Rate and FP Rate
+
+    print("running confusion_matrix for TP Rate and FP Rate...")
+    #kfold split???
+    cm = confusion_matrix(test_labels, predicted_labels)
+    ax = plt.subplot()
+    sns.heatmap(cm, annot=True, ax=ax, fmt='g')
+    # labels and title
+    ax.set_xlabel('Predicted labels')
+    ax.set_ylabel('True labels')
+    ax.set_title('Confusion Matrix')
+    plt.show()
+    '''
+
+    '''
+    Precision, Recall and, F Measure
+'''
+    print("")
+    print("running Precision, Recall and, F Measure...")
+    class_precision = metrics.precision_score(test_labels, predicted_labels, average=None)
+    print('Precision for Each Class:', class_precision)
+    print('Mean Precision:', metrics.precision_score(test_labels, predicted_labels, average='micro'))
+    class_recall = metrics.recall_score(test_labels, predicted_labels, average=None)
+    print('Recall for Each Class:', class_recall)
+    print('Mean Recall:', metrics.recall_score(test_labels, predicted_labels, average='micro'))
+
+    class_f_measure = metrics.f1_score(test_labels, predicted_labels, average=None)
+
+    print('F Measure for Each Class:', class_f_measure)
+    print('Mean F Measure:', metrics.f1_score(test_labels, predicted_labels, average='micro'))
+
+    plt.plot(class_precision, label='Class Precision')
+    plt.plot(class_recall, label='Class Recall')
+    plt.plot(class_f_measure, label='Class F Measure')
+    plt.legend()
+    plt.grid()
+    plt.xticks([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+    plt.title("Metric Data for each Class")
+    plt.xlabel("Class")
+    plt.ylabel("Value")
+    plt.show()
+
+    '''
+    ROC area
+    '''
 
 
+    '''
+    Misc Metrics
+    '''
 
-    #print("")
-    #print("Task 5: TRAIN_TEST:")
-    #predicted_labels = clf.predict(test_images)
+    print('Mean Absolute Error:', metrics.mean_absolute_error(test_labels, predicted_labels))
+    print('Mean Squared Error:', metrics.mean_squared_error(test_labels, predicted_labels))
+    print('Root Mean Squared Error:', np.sqrt(metrics.mean_squared_error(test_labels, predicted_labels)))
+    print("Accuracy on TRAIN_TEST: ", metrics.accuracy_score(test_labels, predicted_labels))
+
+    '''
+    Visualise Decision Trees
+
+    dot_data = tree.export_graphviz(clf, out_file=None)
+    graph = graphviz.Source(dot_data)
+    graph.render(f'{"tree_"}')
+    '''
+
     #print("Accuracy:",metrics.accuracy_score(test_labels, predicted_labels))
 
     #score = cross_val_score(predicted_labels, test_labelscv=5)
