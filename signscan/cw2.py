@@ -87,20 +87,20 @@ def decisiontree_j48(ctx, train_type: TrainingType):
         test_images, test_labels = load_data("./cw2", shuffle_seed=ctx.obj["seed"])
         # Perform traim-test split
         # 30% 70% training and 100% test (Task 5, 6 and 7)
-        train_images, split_images, train_labels, split_labels = train_test_split(train_images, train_labels, test_size=0.3, random_state=42)
+        train_images, split_images, train_labels, split_labels = train_test_split(train_images, train_labels, test_size=1, random_state=42)
         test_images = test_images.append(split_images)
         test_labels = test_labels.append(split_labels)
 
     print("")
-    print("Running Decision Tree J48: KFold...")
-    clf = DecisionTreeClassifier(random_state=0, min_samples_split=100, min_samples_leaf=75)
+    print("Running Decision Tree J48...")
+    clf = DecisionTreeClassifier(random_state=0)
     clf.fit(train_images, train_labels)
 
     if train_type is TrainingType.CROSS_VALIDATION:
 
         print("")
         print("Making KFold CROSS_VALIDATION:")
-        print("J48 Parameters: Moved data", clf.min_samples_split, ", min samples leaf: ", clf.min_samples_leaf)
+        #print("J48 Parameters: Moved data", clf.min_samples_split, ", min samples leaf: ", clf.min_samples_leaf)
         # Perform 10-fold cross validation
         predicted_labels = cross_val_predict(clf, train_images, train_labels, cv=10)
         #predicted_labels = clf.predict(train_images)
