@@ -9,13 +9,6 @@ from signscan.cli import signscan, load_data
 from sklearn import tree
 from sklearn.tree import DecisionTreeClassifier # Import Decision Tree Classifier
 from sklearn.tree import export_graphviz
-from sklearn.model_selection import GridSearchCV
-
-from sklearn.model_selection import KFold
-from sklearn.model_selection import cross_validate
-
-#from sklearn.cross_validation import cross_val_score
-#from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import train_test_split # Import train_test_split function
 from sklearn.model_selection import cross_val_score, cross_val_predict # Import cross_val_score function
 from sklearn import metrics #Import scikit-learn metrics module for accuracy calculation
@@ -93,8 +86,8 @@ def decisiontree_j48(ctx, train_type: TrainingType):
     elif train_type is TrainingType.TRAIN_TEST:
         test_images, test_labels = load_data("./cw2", shuffle_seed=ctx.obj["seed"])
         # Perform traim-test split
-        # 100% 70% training and 30% test (Task 5, 6 and 7)
-        train_images, split_images, train_labels, split_labels = train_test_split(train_images, train_labels, test_size=0.7, random_state=42)
+        # 30% 70% training and 100% test (Task 5, 6 and 7)
+        train_images, split_images, train_labels, split_labels = train_test_split(train_images, train_labels, test_size=0.3, random_state=42)
         test_images = test_images.append(split_images)
         test_labels = test_labels.append(split_labels)
 
@@ -109,10 +102,10 @@ def decisiontree_j48(ctx, train_type: TrainingType):
         print("Making KFold CROSS_VALIDATION:")
         print("J48 Parameters: Moved data", clf.min_samples_split, ", min samples leaf: ", clf.min_samples_leaf)
         # Perform 10-fold cross validation
-        scores = cross_val_score(clf, train_images, train_labels, cv=10)
-        predicted_labels = clf.predict(train_images)
+        predicted_labels = cross_val_predict(clf, train_images, train_labels, cv=10)
+        #predicted_labels = clf.predict(train_images)
         #Visualisation trees
-        print("making visualisation of a tree...")
+        #print("making visualisation of a tree...")
         #for tree_in_forest in clf.estimators_:
         #dot_data = tree.export_graphviz(clf, out_file=None)
         #graph = graphviz.Source(dot_data)
