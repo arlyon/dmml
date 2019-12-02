@@ -67,7 +67,7 @@ def randomforest(ctx, train_type: TrainingType):
 
     print("Running Random Forest...")
 
-    clf = RandomForestClassifier(oob_score=True, n_estimators=15, min_samples_split=50, min_samples_leaf=75)
+    clf = RandomForestClassifier(oob_score=True, n_estimators=15, min_samples_split=10, min_samples_leaf=25)
 
     clf.fit(x_train, y_train)
 
