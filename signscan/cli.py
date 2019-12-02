@@ -9,11 +9,15 @@ import pandas
 from collections import namedtuple
 from typing import Tuple
 
+from tensorflow import keras
+
 label_mapping = [
     "limit_60", "limit_80", "limit_80_lifted",
     "right_of_way_crossing", "right_of_way", "give_way", "stop",
     "no_speed_limit", "turn_right_down", "turn_left_down"
 ]
+
+tf_verbosity = ["ERROR", "WARNING", "INFO", "DEBUG"]
 
 YTrain = namedtuple("YTrain", label_mapping)
 
@@ -68,8 +72,9 @@ def load_data(folder: str, *, shuffle=True, shuffle_seed=None) -> Tuple[pandas.D
 @click.option('--seed', help='The random seed. This program is deterministic, and so the seed must be set.', default=0)
 @click.option('--save-plot', help='The folder to output plots to.', default=None, type=click.Path(file_okay=False, dir_okay=True, exists=True))
 @click.option('--show-plot', help='Whether to show plots.', is_flag=True)
+@click.option('-v', '--verbosity', help="The verbosity of the output.", count=True)
 @click.pass_context
-def signscan(ctx, data_folder, seed, save_plot, show_plot):
+def signscan(ctx, data_folder, seed, save_plot, show_plot, verbosity):
     """Tool for demonstrating the various analyses required for coursework 1."""
 
     # store data so that other commands can use it
@@ -78,6 +83,10 @@ def signscan(ctx, data_folder, seed, save_plot, show_plot):
     ctx.obj["seed"] = seed
     ctx.obj["save_plot"] = save_plot
     ctx.obj["show_plot"] = show_plot
+    ctx.obj["verbosity"] = verbosity
+
+    import tensorflow as tf
+    tf.get_logger().setLevel(tf_verbosity[min(ctx.obj["verbosity"], 3)])
 
 
 @signscan.command()
@@ -87,10 +96,10 @@ def count_samples(ctx):
     Outputs the number of samples for each discovered label.
     """
     print("loading data...")
-    x_train, y_train, _ = load_data(ctx.obj["data_folder"], shuffle_seed=ctx.obj["seed"])
+    images, labels = load_data(ctx.obj["data_folder"], shuffle_seed=ctx.obj["seed"])
 
     print("")
     print("enumerated sample counts:")
-    for key, frame in y_train._asdict().items():
-        print(f" - {key}: {frame[frame.label==0].shape[0]}")
-    print("total: ", len(x_train))
+    for key, arr in list(zip(label_mapping, numpy.transpose(keras.utils.to_categorical(labels)))):
+        print(f" - {key}: {int(sum(arr))}")
+    print("total: ", len(images))

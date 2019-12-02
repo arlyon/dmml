@@ -1,16 +1,16 @@
-import pickle
-from enum import Enum
 import hashlib
-from typing import Optional
+import os.path as path
+import pickle
+import os
+from enum import Enum
 
-import click
 import tensorflow as tf
 import tensorflow.keras as k
-from sklearn.model_selection import StratifiedKFold
+import click
 import pandas
+from sklearn.model_selection import StratifiedKFold
 
 from signscan.cli import signscan, load_data
-import os.path as path
 
 
 class EnumType(click.Choice):
@@ -57,20 +57,34 @@ def neural_net(ctx, classifier: ClassifierType, model_cache: str, batch_size: in
 
 
 @neural_net.command()
+@click.option("--splits", help="number of groups to split the data into", type=int, default=10)
 @click.pass_context
-def kfold(ctx):
+def kfold(ctx, splits):
     """Train the model using k-fold method on one data set."""
     print("loading data...")
     images, labels = load_data(ctx.obj["data_folder"], shuffle_seed=ctx.obj["seed"])
 
+    print("")
+    print(f"running k-fold with 10 folds on a {ctx.obj['classifier'].value} model...")
+    scores = pandas.DataFrame()
     for fold, (train_indices, test_indices) in enumerate(
-            StratifiedKFold(n_splits=10, random_state=ctx.obj["seed"]).split(images, labels)):
+        StratifiedKFold(n_splits=splits, random_state=ctx.obj["seed"]).split(images, labels)):
+        print(f" - training fold {fold+1}")
         train_images = images.iloc[train_indices]
         train_labels = labels.iloc[train_indices]
         test_images = images.iloc[test_indices]
-        test_labels = labels.iloc[test_indices]
-
+        test_labels = k.utils.to_categorical(labels.iloc[test_indices])
         model, hist = build_model(ctx, train_images, train_labels, kfold.name, batch_size=ctx.obj["batch_size"])
+
+        print(f"   evaluating fold {fold+1}")
+        data = dict(zip(model.metrics_names, model.evaluate(test_images, test_labels, batch_size=ctx.obj["batch_size"],
+                                     verbose=ctx.obj["verbosity"] > 1)))
+
+        scores = scores.append(data, ignore_index=True)
+
+    print("")
+    with pandas.option_context('display.max_rows', None, 'display.max_columns', None):
+        print(scores)
 
 
 @neural_net.command()
@@ -86,15 +100,22 @@ def train_test(ctx, test_dir, train_data_offset: int):
     train_images, train_labels, test_images, test_labels = move_data(train_data_offset, train_images, train_labels,
                                                                      test_images, test_labels)
 
+    print("")
+    print(f"training {ctx.obj['classifier'].value} model with {train_data_offset} moved...")
     model, hist = build_model(ctx, train_images, train_labels, train_test.name, batch_size=ctx.obj["batch_size"])
 
     test_images = (test_images / 255)
     test_labels = k.utils.to_categorical(test_labels)
-    model.evaluate(test_images, test_labels, batch_size=ctx.obj["batch_size"])
+
+    print("")
+    print("evaluating model...")
+    for key, value in zip(model.metrics_names, model.evaluate(test_images, test_labels, batch_size=ctx.obj["batch_size"], verbose=ctx.obj["verbosity"] > 1)):
+        print(f" - {key}: {value}")
 
 
 class CacheDigest:
-    def __init__(self, images: pandas.DataFrame, labels: pandas.DataFrame, train_strategy: str, classifier: ClassifierType, batch_size: int, epochs: int):
+    def __init__(self, images: pandas.DataFrame, labels: pandas.DataFrame, train_strategy: str,
+                 classifier: ClassifierType, batch_size: int, epochs: int):
         self._hash = hashlib.sha256()
         self._hash.update(bytearray(pandas.util.hash_pandas_object(images).values))
         self._hash.update(bytearray(pandas.util.hash_pandas_object(labels).values))
@@ -120,7 +141,7 @@ class CacheDigest:
 
 
 def build_model(ctx, train_images, train_labels, cache_name, batch_size=32, epochs=10):
-    digest = CacheDigest(train_images, train_labels, cache_name, ctx.obj["classifier"], batch_size,  epochs)
+    digest = CacheDigest(train_images, train_labels, cache_name, ctx.obj["classifier"], batch_size, epochs)
     model_path = path.join(ctx.obj["model_dir"], digest.model) if ctx.obj["model_dir"] is not None else None
     hist_path = path.join(ctx.obj["model_dir"], digest.hist) if ctx.obj["model_dir"] is not None else None
     model, history = None, None
@@ -169,6 +190,7 @@ def compile_model(train_images, classifier) -> k.Sequential:
     ])
 
     return model
+
 
 def move_data(train_elements_move, train_images, train_labels, test_images, test_labels):
     if train_elements_move > 0:
